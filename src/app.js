@@ -213,10 +213,10 @@ function applyWorkspaceOperationLocally(workspace, operation) {
 
     const nodes = { ...document.nodes };
     nodes[rootId] = { ...nodes[rootId], x: 0, y: 0 };
-    const rootSpacingX = 340;
-    const childSpacingX = 250;
+    const rootSpacingX = 430;
+    const childSpacingX = 320;
     const siblingGapY = 72;
-    const collisionPaddingX = 40;
+    const collisionPaddingX = 96;
     const collisionPaddingY = 36;
 
     function nodeBoxWidth(nodeId) {
@@ -329,8 +329,8 @@ function applyWorkspaceOperationLocally(workspace, operation) {
               const shiftX = overlapX / 2;
               const shiftY = overlapY / 2;
 
-              shiftSubtree(a.id, -shiftX * 0.65, b.y >= a.y ? -shiftY * 0.45 : shiftY * 0.45);
-              shiftSubtree(b.id, shiftX, b.y >= a.y ? shiftY : -shiftY);
+              shiftSubtree(a.id, -shiftX * 0.9, b.y >= a.y ? -shiftY * 0.3 : shiftY * 0.3);
+              shiftSubtree(b.id, shiftX * 1.1, b.y >= a.y ? shiftY * 0.7 : -shiftY * 0.7);
               changed = true;
             }
           }
