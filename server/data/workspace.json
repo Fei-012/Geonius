@@ -1,7 +1,7 @@
 {
   "id": "shared-workspace",
   "title": "Geonius",
-  "version": 776,
+  "version": 882,
   "folders": [
     {
       "id": "3e3dc572-e5bf-4aea-884c-3ee3e4043180",
@@ -37,8 +37,8 @@
             "parentId": null,
             "text": "Geonius",
             "order": 0,
-            "x": -163.72675935427458,
-            "y": 48.92816310975607,
+            "x": 0,
+            "y": 0,
             "color": "#0f766e",
             "collapsed": false,
             "createdAt": 1777221867834,
@@ -49,78 +49,54 @@
             "parentId": "root",
             "text": "Strategy",
             "order": 0,
-            "x": 320,
-            "y": -329.79508196721315,
+            "x": 340,
+            "y": -186,
             "color": "#f97316",
             "collapsed": false,
             "createdAt": 1777221867834,
-            "updatedAt": 1777223165220
+            "updatedAt": 1777223772324
           },
           "9db3abb1-c53f-4da1-8c8d-c32796aa7d75": {
             "id": "9db3abb1-c53f-4da1-8c8d-c32796aa7d75",
             "parentId": "root",
             "text": "Execution",
             "order": 1,
-            "x": 228.03726535585668,
-            "y": -198.43720516559662,
+            "x": 340,
+            "y": -62,
             "color": "#2563eb",
             "collapsed": false,
             "createdAt": 1777221867834,
-            "updatedAt": 1777223169186
+            "updatedAt": 1777223772324
           },
           "d30c6292-9e79-4d95-874a-a8890373952f": {
             "id": "d30c6292-9e79-4d95-874a-a8890373952f",
             "parentId": "root",
             "text": "Images",
             "order": 2,
-            "x": 287.4909538299544,
-            "y": -78.61643592823808,
+            "x": 340,
+            "y": 62,
             "color": "#9333ea",
             "collapsed": false,
             "createdAt": 1777221867834,
-            "updatedAt": 1777223401776
-          },
-          "node-vf965rlo": {
-            "id": "node-vf965rlo",
-            "parentId": "root",
-            "text": "H",
-            "order": 3,
-            "x": 206.18969131097583,
-            "y": 84.0110412432249,
-            "color": "#dc2626",
-            "collapsed": true,
-            "createdAt": 1777222324497,
-            "updatedAt": 1777223394377
+            "updatedAt": 1777223772324
           },
           "node-vmf33ud1": {
             "id": "node-vmf33ud1",
             "parentId": "root",
             "text": "New sibling",
-            "order": 4,
-            "x": 319.7421875,
-            "y": 198.2421875,
+            "order": 3,
+            "x": 340,
+            "y": 186,
             "color": "#dc2626",
             "collapsed": false,
             "createdAt": 1777222333595,
-            "updatedAt": 1777223397925
-          },
-          "node-x4z0m8ak": {
-            "id": "node-x4z0m8ak",
-            "parentId": "root",
-            "text": "New sibling",
-            "order": 5,
-            "x": 320,
-            "y": 330.3671875,
-            "color": "#dc2626",
-            "collapsed": true,
-            "createdAt": 1777222334211,
-            "updatedAt": 1777223400080
+            "updatedAt": 1777223772324
           }
         },
-        "updatedAt": 1777223401776
+        "updatedAt": 1777223772324
       },
       "createdAt": 1777222721462,
-      "updatedAt": 1777223401776
+      "updatedAt": 1777223772324
     },
     "84a82920-4e84-41c3-9044-c1b1a13ce509": {
       "id": "84a82920-4e84-41c3-9044-c1b1a13ce509",
@@ -209,5 +185,5 @@
       "updatedAt": 1777223660304
     }
   },
-  "updatedAt": 1777223660304
+  "updatedAt": 1777223772324
 }
