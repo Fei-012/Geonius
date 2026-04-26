@@ -3,8 +3,8 @@ import { createServer } from "node:http";
 import fs from "node:fs";
 import path from "node:path";
 import { Server } from "socket.io";
-import { createInitialDocument } from "../src/shared/document.js";
-import type { MindmapDocument, Presence } from "../src/shared/types.js";
+import { applyOperation, createInitialDocument } from "../src/shared/document.js";
+import type { MindmapDocument, MindmapOperation, Presence } from "../src/shared/types.js";
 
 const app = express();
 const httpServer = createServer(app);
@@ -69,15 +69,12 @@ io.on("connection", (socket) => {
     io.emit("presence:sync", Object.values(state.presence));
   });
 
-  socket.on("document:update", (nextDocument: MindmapDocument) => {
-    state.document = {
-      ...nextDocument,
-      updatedAt: Date.now()
-    };
+  socket.on("operation:apply", (operation: MindmapOperation) => {
+    state.document = applyOperation(state.document, operation);
     saveDocument(state.document);
-    socket.broadcast.emit("document:sync", {
-      document: state.document,
-      presence: Object.values(state.presence)
+    socket.broadcast.emit("operation:apply", {
+      operation,
+      version: state.document.version
     });
   });
 

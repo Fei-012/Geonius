@@ -1,7 +1,25 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
+  type WheelEvent as ReactWheelEvent
+} from "react";
 import { io, type Socket } from "socket.io-client";
-import { createInitialDocument, createNode, cryptoSafeId, getChildren, removeNode, rootId } from "./shared/document";
-import type { MindmapDocument, MindmapNode, Presence } from "./shared/types";
+import {
+  applyOperation,
+  arrangeDocument,
+  createInitialDocument,
+  createNode,
+  cryptoSafeId,
+  getChildren,
+  getSiblingIds,
+  rootId
+} from "./shared/document";
+import type { MindmapDocument, MindmapNode, MindmapOperation, Presence } from "./shared/types";
 
 const palette = ["#0f766e", "#f97316", "#2563eb", "#dc2626", "#7c3aed", "#059669", "#ca8a04"];
 const socketUrl = import.meta.env.VITE_SOCKET_URL ?? "http://localhost:3001";
@@ -16,10 +34,7 @@ function isVisible(document: MindmapDocument, nodeId: string): boolean {
   let current = document.nodes[nodeId];
   while (current && current.parentId) {
     const parent = document.nodes[current.parentId];
-    if (!parent) {
-      return false;
-    }
-    if (parent.collapsed) {
+    if (!parent || parent.collapsed) {
       return false;
     }
     current = parent;
@@ -30,11 +45,70 @@ function isVisible(document: MindmapDocument, nodeId: string): boolean {
 function getConnectionLines(document: MindmapDocument) {
   return Object.values(document.nodes)
     .filter((node) => node.parentId && isVisible(document, node.id))
-    .map((node) => {
-      const parent = document.nodes[node.parentId!];
-      return { node, parent };
-    })
-    .filter((item): item is { node: MindmapNode; parent: MindmapNode } => Boolean(item.parent));
+    .map((node) => ({
+      node,
+      parent: document.nodes[node.parentId!]
+    }))
+    .filter((entry): entry is { node: MindmapNode; parent: MindmapNode } => Boolean(entry.parent));
+}
+
+function OutlineTree({
+  document,
+  selectedNodeId,
+  presence,
+  onSelect,
+  onUpdateText,
+  onNodeKeyDown
+}: {
+  document: MindmapDocument;
+  selectedNodeId: string;
+  presence: Presence[];
+  onSelect: (nodeId: string) => void;
+  onUpdateText: (nodeId: string, text: string) => void;
+  onNodeKeyDown: (event: ReactKeyboardEvent<HTMLInputElement>, nodeId: string) => void;
+}) {
+  function renderBranch(nodeId: string, depth: number): JSX.Element {
+    const node = document.nodes[nodeId];
+    const children = getChildren(document, nodeId);
+    const watchers = presence.filter((member) => member.selectedNodeId === nodeId);
+
+    return (
+      <div key={nodeId} className="outline-branch">
+        <div
+          className={`outline-row ${selectedNodeId === nodeId ? "active" : ""}`}
+          style={{ paddingLeft: `${depth * 18 + 10}px` }}
+        >
+          <button
+            className="tree-toggle"
+            onClick={() => onSelect(nodeId)}
+            title={node.collapsed ? "Select collapsed branch" : "Select branch"}
+          >
+            {children.length > 0 ? (node.collapsed ? "+" : "-") : "•"}
+          </button>
+          <input
+            value={node.text}
+            className="outline-input"
+            onFocus={() => onSelect(nodeId)}
+            onChange={(event) => onUpdateText(nodeId, event.target.value)}
+            onKeyDown={(event) => onNodeKeyDown(event, nodeId)}
+          />
+          <div className="mini-presence">
+            {watchers.map((member) => (
+              <span
+                key={member.socketId}
+                className="mini-presence-dot"
+                title={member.name}
+                style={{ background: member.color }}
+              />
+            ))}
+          </div>
+        </div>
+        {!node.collapsed ? children.map((child) => renderBranch(child.id, depth + 1)) : null}
+      </div>
+    );
+  }
+
+  return <div className="outline-tree">{renderBranch(rootId, 0)}</div>;
 }
 
 function App() {
@@ -47,7 +121,7 @@ function App() {
     name: getRandomName(),
     color: palette[Math.floor(Math.random() * palette.length)]
   }));
-  const [viewport, setViewport] = useState({ x: window.innerWidth / 2, y: 140, scale: 1 });
+  const [viewport, setViewport] = useState({ x: window.innerWidth / 2, y: 180, scale: 1 });
   const selectedNodeIdRef = useRef(selectedNodeId);
   const dragRef = useRef<{ nodeId: string; offsetX: number; offsetY: number } | null>(null);
   const panRef = useRef<{ x: number; y: number } | null>(null);
@@ -78,6 +152,10 @@ function App() {
       setPresence(payload.presence);
     });
 
+    nextSocket.on("operation:apply", (payload: { operation: MindmapOperation }) => {
+      setDocument((current) => applyOperation(current, payload.operation));
+    });
+
     nextSocket.on("presence:sync", (nextPresence: Presence[]) => {
       setPresence(nextPresence);
     });
@@ -99,40 +177,88 @@ function App() {
     });
   }, [selectedNodeId, socket, user.color, user.name]);
 
-  const selectedNode = document.nodes[selectedNodeId] ?? document.nodes[rootId];
-
   useEffect(() => {
     if (!document.nodes[selectedNodeId]) {
       setSelectedNodeId(rootId);
     }
   }, [document.nodes, selectedNodeId]);
 
-  function syncDocument(nextDocument: MindmapDocument) {
-    setDocument(nextDocument);
-    socket?.emit("document:update", nextDocument);
+  const selectedNode = document.nodes[selectedNodeId] ?? document.nodes[rootId];
+  const visibleNodes = useMemo(
+    () => Object.values(document.nodes).filter((node) => isVisible(document, node.id)),
+    [document]
+  );
+  const connectionLines = useMemo(() => getConnectionLines(document), [document]);
+  const otherUsers = presence.filter((member) => member.name !== user.name);
+
+  function commitOperation(operation: MindmapOperation) {
+    setDocument((current) => applyOperation(current, operation));
+    socket?.emit("operation:apply", operation);
   }
 
-  function updateNode(nodeId: string, updater: (node: MindmapNode) => MindmapNode) {
-    const current = document.nodes[nodeId];
-    if (!current) {
-      return;
-    }
-
-    const updated = updater(current);
-    syncDocument({
-      ...document,
-      nodes: {
-        ...document.nodes,
-        [nodeId]: {
-          ...updated,
-          updatedAt: Date.now()
-        }
-      },
-      updatedAt: Date.now()
+  function updateNodeText(nodeId: string, text: string) {
+    commitOperation({
+      type: "node/update",
+      nodeId,
+      changes: { text }
     });
   }
 
-  function addChildNode(parentId: string) {
+  function updateSelectedNode(changes: Partial<Omit<MindmapNode, "id" | "createdAt">>) {
+    if (!selectedNode) {
+      return;
+    }
+
+    commitOperation({
+      type: "node/update",
+      nodeId: selectedNode.id,
+      changes
+    });
+  }
+
+  function createSibling(nodeId: string) {
+    const current = document.nodes[nodeId];
+    if (!current || !current.parentId) {
+      return;
+    }
+
+    const siblingIds = getSiblingIds(document, current.parentId);
+    const currentIndex = siblingIds.indexOf(nodeId);
+    const nextOrder = currentIndex + 1;
+    const reorderedIds = [...siblingIds];
+    const newId = cryptoSafeId();
+    reorderedIds.splice(nextOrder, 0, newId);
+
+    const newNode = createNode({
+      id: newId,
+      text: "New sibling",
+      parentId: current.parentId,
+      order: nextOrder,
+      color: current.color
+    });
+
+    commitOperation({
+      type: "document/set",
+      document: arrangeDocument(
+        applyOperation(
+          applyOperation(document, {
+            type: "node/upsert",
+            node: newNode
+          }),
+          {
+            type: "nodes/reorder",
+            parentId: current.parentId,
+            orderedIds: reorderedIds
+          }
+        ),
+        current.parentId
+      )
+    });
+
+    setSelectedNodeId(newId);
+  }
+
+  function createChild(parentId: string) {
     const parent = document.nodes[parentId];
     if (!parent) {
       return;
@@ -143,34 +269,145 @@ function App() {
       id: cryptoSafeId(),
       text: "New idea",
       parentId,
-      x: parent.x + (parentId === rootId ? 280 : 220),
-      y: siblings.length === 0 ? parent.y : siblings[siblings.length - 1].y + 120,
+      order: siblings.length,
       color: palette[siblings.length % palette.length]
     });
 
-    const nextDocument = {
-      ...document,
-      nodes: {
-        ...document.nodes,
-        [newNode.id]: newNode
-      },
-      updatedAt: Date.now()
-    };
+    commitOperation({
+      type: "node/upsert",
+      node: newNode
+    });
     setSelectedNodeId(newNode.id);
-    syncDocument(nextDocument);
   }
 
-  function deleteSelectedNode() {
+  function removeSelectedNode() {
     if (selectedNodeId === rootId) {
       return;
     }
 
-    const nextDocument = removeNode(document, selectedNodeId);
+    commitOperation({
+      type: "node/remove",
+      nodeId: selectedNodeId
+    });
     setSelectedNodeId(rootId);
-    syncDocument(nextDocument);
   }
 
-  async function onUploadImage(event: React.ChangeEvent<HTMLInputElement>) {
+  function toggleCollapse(nodeId: string) {
+    const node = document.nodes[nodeId];
+    if (!node) {
+      return;
+    }
+
+    commitOperation({
+      type: "node/update",
+      nodeId,
+      changes: { collapsed: !node.collapsed }
+    });
+  }
+
+  function moveNodeAmongSiblings(nodeId: string, direction: -1 | 1) {
+    const node = document.nodes[nodeId];
+    if (!node) {
+      return;
+    }
+
+    const siblingIds = getSiblingIds(document, node.parentId);
+    const currentIndex = siblingIds.indexOf(nodeId);
+    const targetIndex = currentIndex + direction;
+    if (currentIndex < 0 || targetIndex < 0 || targetIndex >= siblingIds.length) {
+      return;
+    }
+
+    const nextIds = [...siblingIds];
+    const [movedId] = nextIds.splice(currentIndex, 1);
+    nextIds.splice(targetIndex, 0, movedId);
+
+    commitOperation({
+      type: "nodes/reorder",
+      parentId: node.parentId,
+      orderedIds: nextIds
+    });
+  }
+
+  function outdentNode(nodeId: string) {
+    const node = document.nodes[nodeId];
+    if (!node?.parentId || node.parentId === rootId) {
+      return;
+    }
+
+    const parent = document.nodes[node.parentId];
+    if (!parent?.parentId) {
+      return;
+    }
+
+    const uncleIds = getSiblingIds(document, parent.parentId);
+    const parentIndex = uncleIds.indexOf(parent.id);
+    const reorderedUncles = [...uncleIds];
+    reorderedUncles.splice(parentIndex + 1, 0, nodeId);
+
+    const movedNode = {
+      ...node,
+      parentId: parent.parentId,
+      order: parentIndex + 1
+    };
+
+    let nextDocument = applyOperation(document, {
+      type: "node/upsert",
+      node: movedNode
+    });
+
+    nextDocument = applyOperation(nextDocument, {
+      type: "nodes/reorder",
+      parentId: parent.parentId,
+      orderedIds: reorderedUncles.filter((id, index, array) => array.indexOf(id) === index)
+    });
+
+    commitOperation({
+      type: "document/set",
+      document: arrangeDocument(nextDocument, movedNode.parentId ?? rootId)
+    });
+  }
+
+  function indentNode(nodeId: string) {
+    const node = document.nodes[nodeId];
+    if (!node?.parentId) {
+      return;
+    }
+
+    const siblingIds = getSiblingIds(document, node.parentId);
+    const currentIndex = siblingIds.indexOf(nodeId);
+    if (currentIndex <= 0) {
+      return;
+    }
+
+    const previousSiblingId = siblingIds[currentIndex - 1];
+    const previousSibling = document.nodes[previousSiblingId];
+    if (!previousSibling) {
+      return;
+    }
+
+    const previousChildren = getChildren(document, previousSibling.id);
+    const movedNode = {
+      ...node,
+      parentId: previousSibling.id,
+      order: previousChildren.length
+    };
+
+    commitOperation({
+      type: "node/upsert",
+      node: movedNode
+    });
+
+    if (previousSibling.collapsed) {
+      commitOperation({
+        type: "node/update",
+        nodeId: previousSibling.id,
+        changes: { collapsed: false }
+      });
+    }
+  }
+
+  async function onUploadImage(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file || !selectedNode) {
       return;
@@ -183,18 +420,9 @@ function App() {
       reader.readAsDataURL(file);
     });
 
-    updateNode(selectedNode.id, (node) => ({
-      ...node,
-      image: dataUrl
-    }));
+    updateSelectedNode({ image: dataUrl });
     event.target.value = "";
   }
-
-  const visibleNodes = useMemo(
-    () => Object.values(document.nodes).filter((node) => isVisible(document, node.id)),
-    [document]
-  );
-  const connectionLines = useMemo(() => getConnectionLines(document), [document]);
 
   function screenToCanvas(clientX: number, clientY: number) {
     return {
@@ -203,14 +431,17 @@ function App() {
     };
   }
 
-  function handlePointerMove(event: React.PointerEvent<HTMLDivElement>) {
+  function handlePointerMove(event: ReactPointerEvent<HTMLDivElement>) {
     if (dragRef.current) {
       const point = screenToCanvas(event.clientX, event.clientY);
-      updateNode(dragRef.current.nodeId, (node) => ({
-        ...node,
-        x: point.x - dragRef.current!.offsetX,
-        y: point.y - dragRef.current!.offsetY
-      }));
+      commitOperation({
+        type: "node/update",
+        nodeId: dragRef.current.nodeId,
+        changes: {
+          x: point.x - dragRef.current.offsetX,
+          y: point.y - dragRef.current.offsetY
+        }
+      });
       return;
     }
 
@@ -229,12 +460,41 @@ function App() {
     panRef.current = null;
   }
 
-  function handleWheel(event: React.WheelEvent<HTMLDivElement>) {
+  function handleWheel(event: ReactWheelEvent<HTMLDivElement>) {
     const delta = event.deltaY > 0 ? -0.08 : 0.08;
     setViewport((current) => ({
       ...current,
       scale: Math.max(0.45, Math.min(1.8, current.scale + delta))
     }));
+  }
+
+  function handleOutlineKeyDown(event: ReactKeyboardEvent<HTMLInputElement>, nodeId: string) {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      createSibling(nodeId);
+      return;
+    }
+
+    if (event.key === "Tab") {
+      event.preventDefault();
+      if (event.shiftKey) {
+        outdentNode(nodeId);
+      } else {
+        indentNode(nodeId);
+      }
+      return;
+    }
+
+    if (event.altKey && event.key === "ArrowUp") {
+      event.preventDefault();
+      moveNodeAmongSiblings(nodeId, -1);
+      return;
+    }
+
+    if (event.altKey && event.key === "ArrowDown") {
+      event.preventDefault();
+      moveNodeAmongSiblings(nodeId, 1);
+    }
   }
 
   useEffect(() => {
@@ -245,12 +505,17 @@ function App() {
 
       if (event.key === "Tab") {
         event.preventDefault();
-        addChildNode(selectedNodeId);
+        createChild(selectedNodeId);
       }
 
       if (event.key === "Backspace") {
         event.preventDefault();
-        deleteSelectedNode();
+        removeSelectedNode();
+      }
+
+      if (event.key === " ") {
+        event.preventDefault();
+        toggleCollapse(selectedNodeId);
       }
     }
 
@@ -263,9 +528,9 @@ function App() {
       <aside className="sidebar">
         <div>
           <p className="eyebrow">Geonius</p>
-          <h1>{document.title}</h1>
+          <h1>Shared Mindmap</h1>
           <p className="subtle">
-            A live collaborative mindmap inspired by outline-first thinking, with image blocks built into nodes.
+            Outline-first collaboration with live syncing, branch arranging, and image cards inside nodes.
           </p>
         </div>
 
@@ -280,6 +545,10 @@ function App() {
             <span>You</span>
             <strong>{user.name}</strong>
           </div>
+          <div className="panel-row">
+            <span>Version</span>
+            <strong>{document.version}</strong>
+          </div>
           <div className="presence-list">
             {presence.map((member) => (
               <div className="presence-chip" key={member.socketId}>
@@ -291,28 +560,36 @@ function App() {
         </div>
 
         <div className="panel">
+          <div className="panel-heading">
+            <h2>Outline</h2>
+            <button className="ghost" onClick={() => commitOperation({ type: "nodes/arrange" })}>
+              Arrange
+            </button>
+          </div>
+          <OutlineTree
+            document={document}
+            selectedNodeId={selectedNodeId}
+            presence={presence}
+            onSelect={setSelectedNodeId}
+            onUpdateText={updateNodeText}
+            onNodeKeyDown={handleOutlineKeyDown}
+          />
+          <p className="hint">`Enter` sibling, `Tab` indent, `Shift+Tab` outdent, `Alt+↑/↓` reorder.</p>
+        </div>
+
+        <div className="panel">
           <h2>Selected Node</h2>
           <input
             className="title-input"
             value={selectedNode?.text ?? ""}
-            onChange={(event) =>
-              updateNode(selectedNode.id, (node) => ({
-                ...node,
-                text: event.target.value
-              }))
-            }
+            onChange={(event) => updateNodeText(selectedNode.id, event.target.value)}
           />
           <label className="stack">
             Color
             <input
               type="color"
               value={selectedNode?.color ?? "#0f766e"}
-              onChange={(event) =>
-                updateNode(selectedNode.id, (node) => ({
-                  ...node,
-                  color: event.target.value
-                }))
-              }
+              onChange={(event) => updateSelectedNode({ color: event.target.value })}
             />
           </label>
           <label className="stack">
@@ -320,23 +597,18 @@ function App() {
             <input type="file" accept="image/*" onChange={onUploadImage} />
           </label>
           <div className="button-row">
-            <button onClick={() => addChildNode(selectedNode.id)}>Add child</button>
-            <button
-              className="ghost"
-              onClick={() =>
-                updateNode(selectedNode.id, (node) => ({
-                  ...node,
-                  collapsed: !node.collapsed
-                }))
-              }
-            >
+            <button onClick={() => createChild(selectedNode.id)}>Add child</button>
+            <button className="ghost" onClick={() => createSibling(selectedNode.id)} disabled={selectedNode.id === rootId}>
+              Add sibling
+            </button>
+            <button className="ghost" onClick={() => toggleCollapse(selectedNode.id)}>
               {selectedNode?.collapsed ? "Expand" : "Collapse"}
             </button>
-            <button className="danger" onClick={deleteSelectedNode} disabled={selectedNodeId === rootId}>
+            <button className="danger" onClick={removeSelectedNode} disabled={selectedNodeId === rootId}>
               Delete
             </button>
           </div>
-          <p className="hint">Shortcuts: `Tab` adds a child, `Backspace` deletes the selected node.</p>
+          <p className="hint">Canvas shortcuts: `Tab` child, `Space` collapse, `Backspace` delete.</p>
         </div>
       </aside>
 
@@ -348,7 +620,10 @@ function App() {
         onWheel={handleWheel}
       >
         <div className="toolbar">
-          <button onClick={() => setViewport({ x: window.innerWidth / 2, y: 140, scale: 1 })}>Reset view</button>
+          <button onClick={() => setViewport({ x: window.innerWidth / 2, y: 180, scale: 1 })}>Reset view</button>
+          <button className="ghost" onClick={() => commitOperation({ type: "nodes/arrange", focusNodeId: selectedNodeId })}>
+            Reflow branch
+          </button>
           <span>{Math.round(viewport.scale * 100)}%</span>
         </div>
 
@@ -362,13 +637,11 @@ function App() {
           }}
         >
           <svg className="connections">
-            <g
-              transform={`translate(${viewport.x} ${viewport.y}) scale(${viewport.scale})`}
-            >
+            <g transform={`translate(${viewport.x} ${viewport.y}) scale(${viewport.scale})`}>
               {connectionLines.map(({ node, parent }) => (
                 <path
                   key={node.id}
-                  d={`M ${parent.x} ${parent.y} C ${parent.x + 100} ${parent.y}, ${node.x - 100} ${node.y}, ${node.x} ${node.y}`}
+                  d={`M ${parent.x} ${parent.y} C ${parent.x + 105} ${parent.y}, ${node.x - 105} ${node.y}, ${node.x} ${node.y}`}
                   stroke="rgba(15, 23, 42, 0.18)"
                   strokeWidth={3 / viewport.scale}
                   fill="none"
@@ -383,33 +656,51 @@ function App() {
               transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.scale})`
             }}
           >
-            {visibleNodes.map((node) => (
-              <article
-                key={node.id}
-                className={`node-card ${selectedNodeId === node.id ? "selected" : ""}`}
-                style={{
-                  left: node.x,
-                  top: node.y,
-                  borderColor: node.color
-                }}
-                onPointerDown={(event) => {
-                  event.stopPropagation();
-                  setSelectedNodeId(node.id);
-                  const point = screenToCanvas(event.clientX, event.clientY);
-                  dragRef.current = {
-                    nodeId: node.id,
-                    offsetX: point.x - node.x,
-                    offsetY: point.y - node.y
-                  };
-                }}
-                onDoubleClick={() => addChildNode(node.id)}
-              >
-                <span className="node-accent" style={{ background: node.color }} />
-                <h3>{node.text}</h3>
-                {node.image ? <img src={node.image} alt={node.text} className="node-image" /> : null}
-                <p>{getChildren(document, node.id).length} linked ideas</p>
-              </article>
-            ))}
+            {visibleNodes.map((node) => {
+              const viewers = otherUsers.filter((member) => member.selectedNodeId === node.id);
+
+              return (
+                <article
+                  key={node.id}
+                  className={`node-card ${selectedNodeId === node.id ? "selected" : ""}`}
+                  style={{
+                    left: node.x,
+                    top: node.y,
+                    borderColor: node.color
+                  }}
+                  onPointerDown={(event) => {
+                    event.stopPropagation();
+                    setSelectedNodeId(node.id);
+                    const point = screenToCanvas(event.clientX, event.clientY);
+                    dragRef.current = {
+                      nodeId: node.id,
+                      offsetX: point.x - node.x,
+                      offsetY: point.y - node.y
+                    };
+                  }}
+                  onDoubleClick={() => createChild(node.id)}
+                >
+                  <span className="node-accent" style={{ background: node.color }} />
+                  <div className="node-title-row">
+                    <h3>{node.text}</h3>
+                    {viewers.length > 0 ? (
+                      <div className="node-watchers">
+                        {viewers.map((member) => (
+                          <span
+                            key={member.socketId}
+                            className="node-watcher"
+                            style={{ background: member.color }}
+                            title={member.name}
+                          />
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                  {node.image ? <img src={node.image} alt={node.text} className="node-image" /> : null}
+                  <p>{getChildren(document, node.id).length} linked ideas</p>
+                </article>
+              );
+            })}
           </div>
         </div>
       </main>
