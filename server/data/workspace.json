@@ -1,7 +1,7 @@
 {
   "id": "shared-workspace",
   "title": "Geonius",
-  "version": 6043,
+  "version": 6050,
   "folders": [
     {
       "id": "3e3dc572-e5bf-4aea-884c-3ee3e4043180",
@@ -297,11 +297,11 @@
             "updatedAt": 1777227881068
           }
         },
-        "updatedAt": 1777229705436
+        "updatedAt": 1777230707235
       },
       "createdAt": 1777223419596,
-      "updatedAt": 1777229705436
+      "updatedAt": 1777230707235
     }
   },
-  "updatedAt": 1777229705436
+  "updatedAt": 1777230707235
 }
