@@ -24,6 +24,7 @@ localStorage.setItem("geonius-user-color", state.user.color);
 
 let dragState = null;
 let panState = null;
+let resizeState = null;
 let suppressNodeClickUntil = 0;
 
 function randomName() {
@@ -45,12 +46,59 @@ function createNode(partial) {
     order: partial.order ?? 0,
     x: partial.x ?? 0,
     y: partial.y ?? 0,
+    width: partial.width ?? 220,
+    height: partial.height ?? (partial.image ? 220 : 72),
     color: partial.color ?? "#111827",
     collapsed: partial.collapsed ?? false,
     image: partial.image,
     createdAt: partial.createdAt ?? stamp,
     updatedAt: stamp
   };
+}
+
+function getNodeSize(node) {
+  return {
+    width: node.width ?? 220,
+    height: node.height ?? (node.image ? 220 : 72)
+  };
+}
+
+function getResizeDirection(event, element) {
+  const rect = element.getBoundingClientRect();
+  const edge = 10;
+  const nearLeft = event.clientX - rect.left <= edge;
+  const nearRight = rect.right - event.clientX <= edge;
+  const nearTop = event.clientY - rect.top <= edge;
+  const nearBottom = rect.bottom - event.clientY <= edge;
+
+  if (nearLeft && nearTop) return "nw";
+  if (nearRight && nearTop) return "ne";
+  if (nearLeft && nearBottom) return "sw";
+  if (nearRight && nearBottom) return "se";
+  if (nearLeft) return "w";
+  if (nearRight) return "e";
+  if (nearTop) return "n";
+  if (nearBottom) return "s";
+  return "";
+}
+
+function cursorForResizeDirection(direction) {
+  switch (direction) {
+    case "e":
+    case "w":
+      return "ew-resize";
+    case "n":
+    case "s":
+      return "ns-resize";
+    case "ne":
+    case "sw":
+      return "nesw-resize";
+    case "nw":
+    case "se":
+      return "nwse-resize";
+    default:
+      return "";
+  }
 }
 
 function currentNote() {
@@ -546,6 +594,8 @@ function createImageNode(parentId, image) {
     text: "Image",
     order: siblings.length,
     color: parentId === rootId ? "#d1d5db" : "#ffffff",
+    width: 280,
+    height: 240,
     image
   });
   state.selectedNodeId = node.id;
@@ -865,24 +915,31 @@ function renderCanvas() {
       if (!parent) {
         return;
       }
-      const elbowX = parent.x + Math.max(90, (node.x - parent.x) * 0.42);
+      const parentSize = getNodeSize(parent);
+      const nodeSize = getNodeSize(node);
+      const startX = parent.x + parentSize.width / 2;
+      const endX = node.x - nodeSize.width / 2;
+      const elbowX = startX + Math.max(34, (endX - startX) * 0.42);
       const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      path.setAttribute("d", `M ${parent.x} ${parent.y} H ${elbowX} V ${node.y} H ${node.x}`);
+      path.setAttribute("d", `M ${startX} ${parent.y} H ${elbowX} V ${node.y} H ${endX}`);
       path.setAttribute("stroke", "#6b7280");
-      path.setAttribute("stroke-width", String(3.2 / state.viewport.scale));
+      path.setAttribute("stroke-width", String(2.4 / state.viewport.scale));
       path.setAttribute("stroke-linecap", "round");
       path.setAttribute("stroke-linejoin", "round");
-      path.setAttribute("opacity", "0.95");
+      path.setAttribute("opacity", "0.72");
       path.setAttribute("fill", "none");
       group.appendChild(path);
     });
 
   visibleNodes.forEach((node) => {
+    const { width, height } = getNodeSize(node);
     const card = document.createElement("article");
     card.className = `map-node ${state.selectedNodeId === node.id ? "selected" : ""} ${node.id === rootId ? "root-node" : ""}`;
     card.style.left = `${node.x}px`;
     card.style.top = `${node.y}px`;
     card.style.borderColor = node.color || "#111827";
+    card.style.width = `${width}px`;
+    card.style.minHeight = `${height}px`;
 
     const viewers = otherUsers.filter((member) => member.selectedNoteId === state.selectedNoteId && member.selectedNodeId === node.id);
 
@@ -904,6 +961,21 @@ function renderCanvas() {
       event.stopPropagation();
       state.selectedNodeId = node.id;
       syncPresence();
+      const resizeDirection = getResizeDirection(event, card);
+      if (resizeDirection) {
+        resizeState = {
+          nodeId: node.id,
+          direction: resizeDirection,
+          startX: event.clientX,
+          startY: event.clientY,
+          startNodeX: node.x,
+          startNodeY: node.y,
+          startWidth: width,
+          startHeight: height
+        };
+        card.style.cursor = cursorForResizeDirection(resizeDirection);
+        return;
+      }
       const point = screenToCanvas(event.clientX, event.clientY);
       dragState = {
         nodeId: node.id,
@@ -914,6 +986,11 @@ function renderCanvas() {
         moved: false
       };
       render();
+    };
+
+    card.onpointermove = (event) => {
+      const direction = getResizeDirection(event, card);
+      card.style.cursor = cursorForResizeDirection(direction) || "";
     };
 
     card.onclick = (event) => {
@@ -941,6 +1018,12 @@ function renderCanvas() {
 
     const editor = card.querySelector(".node-editor");
     editor.onpointerdown = (event) => {
+      event.stopPropagation();
+    };
+    editor.onclick = (event) => {
+      event.stopPropagation();
+    };
+    editor.ondblclick = (event) => {
       event.stopPropagation();
     };
     editor.onfocus = () => {
@@ -1029,6 +1112,45 @@ function renderCanvas() {
   };
 
   canvasEl.onpointermove = (event) => {
+    if (resizeState) {
+      const dx = (event.clientX - resizeState.startX) / state.viewport.scale;
+      const dy = (event.clientY - resizeState.startY) / state.viewport.scale;
+      let nextWidth = resizeState.startWidth;
+      let nextHeight = resizeState.startHeight;
+      let nextX = resizeState.startNodeX;
+      let nextY = resizeState.startNodeY;
+
+      if (resizeState.direction.includes("e")) {
+        nextWidth = Math.max(120, resizeState.startWidth + dx);
+        nextX = resizeState.startNodeX + (nextWidth - resizeState.startWidth) / 2;
+      }
+      if (resizeState.direction.includes("w")) {
+        nextWidth = Math.max(120, resizeState.startWidth - dx);
+        nextX = resizeState.startNodeX - (nextWidth - resizeState.startWidth) / 2;
+      }
+      if (resizeState.direction.includes("s")) {
+        nextHeight = Math.max(56, resizeState.startHeight + dy);
+        nextY = resizeState.startNodeY + (nextHeight - resizeState.startHeight) / 2;
+      }
+      if (resizeState.direction.includes("n")) {
+        nextHeight = Math.max(56, resizeState.startHeight - dy);
+        nextY = resizeState.startNodeY - (nextHeight - resizeState.startHeight) / 2;
+      }
+
+      commitOperation({
+        type: "node/update",
+        noteId: state.selectedNoteId,
+        nodeId: resizeState.nodeId,
+        changes: {
+          x: nextX,
+          y: nextY,
+          width: nextWidth,
+          height: nextHeight
+        }
+      });
+      return;
+    }
+
     if (dragState) {
       if (
         !dragState.moved &&
@@ -1058,6 +1180,7 @@ function renderCanvas() {
   };
 
   canvasEl.onpointerup = () => {
+    resizeState = null;
     if (dragState?.moved) {
       suppressNodeClickUntil = Date.now() + 180;
     }
@@ -1066,6 +1189,7 @@ function renderCanvas() {
   };
 
   canvasEl.onpointerleave = () => {
+    resizeState = null;
     dragState = null;
     panState = null;
   };

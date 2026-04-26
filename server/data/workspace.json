@@ -1,7 +1,7 @@
 {
   "id": "shared-workspace",
   "title": "Geonius",
-  "version": 1212,
+  "version": 1935,
   "folders": [
     {
       "id": "3e3dc572-e5bf-4aea-884c-3ee3e4043180",
@@ -47,26 +47,26 @@
           "30ce9c96-f863-4afb-b755-d2ad7290f136": {
             "id": "30ce9c96-f863-4afb-b755-d2ad7290f136",
             "parentId": "root",
-            "text": "Strategy",
+            "text": "Stewardship",
             "order": 0,
-            "x": 340,
-            "y": -186,
+            "x": 339.8285060975611,
+            "y": -407.14951727642284,
             "color": "#f97316",
             "collapsed": false,
             "createdAt": 1777221867834,
-            "updatedAt": 1777223772324
+            "updatedAt": 1777224428100
           },
           "9db3abb1-c53f-4da1-8c8d-c32796aa7d75": {
             "id": "9db3abb1-c53f-4da1-8c8d-c32796aa7d75",
             "parentId": "root",
-            "text": "Execution",
+            "text": "Pessimistic view",
             "order": 1,
             "x": 340,
             "y": -62,
             "color": "#2563eb",
             "collapsed": false,
             "createdAt": 1777221867834,
-            "updatedAt": 1777223772324
+            "updatedAt": 1777224407683
           },
           "d30c6292-9e79-4d95-874a-a8890373952f": {
             "id": "d30c6292-9e79-4d95-874a-a8890373952f",
@@ -74,7 +74,7 @@
             "text": "Images",
             "order": 2,
             "x": 340,
-            "y": 62,
+            "y": 124,
             "color": "#9333ea",
             "collapsed": false,
             "createdAt": 1777221867834,
@@ -86,17 +86,53 @@
             "text": "New sibling",
             "order": 3,
             "x": 340,
-            "y": 186,
+            "y": 248,
             "color": "#dc2626",
             "collapsed": false,
             "createdAt": 1777222333595,
             "updatedAt": 1777223772324
+          },
+          "node-17pphwai": {
+            "id": "node-17pphwai",
+            "parentId": "30ce9c96-f863-4afb-b755-d2ad7290f136",
+            "text": "An approach to resource management which views humans as 'caretakers' of the natural world",
+            "order": 0,
+            "x": 590,
+            "y": -404.564405487805,
+            "color": "#ffffff",
+            "collapsed": false,
+            "createdAt": 1777224137978,
+            "updatedAt": 1777224425800
+          },
+          "node-zfd9nlbt": {
+            "id": "node-zfd9nlbt",
+            "parentId": "9db3abb1-c53f-4da1-8c8d-c32796aa7d75",
+            "text": "Population growth will eventually outstrip the natural resource base of the planet",
+            "order": 0,
+            "x": 591.3560721544716,
+            "y": -207.3142784552846,
+            "color": "#ffffff",
+            "collapsed": false,
+            "createdAt": 1777224367446,
+            "updatedAt": 1777224430018
+          },
+          "node-dx3tlpen": {
+            "id": "node-dx3tlpen",
+            "parentId": "9db3abb1-c53f-4da1-8c8d-c32796aa7d75",
+            "text": "Rising wealth and consumption will hasten the time in which this happens",
+            "order": 1,
+            "x": 586.7066819105692,
+            "y": -14.519817073170739,
+            "color": "#ffffff",
+            "collapsed": false,
+            "createdAt": 1777224408428,
+            "updatedAt": 1777224431450
           }
         },
-        "updatedAt": 1777223772324
+        "updatedAt": 1777224431450
       },
       "createdAt": 1777222721462,
-      "updatedAt": 1777223772324
+      "updatedAt": 1777224431450
     },
     "84a82920-4e84-41c3-9044-c1b1a13ce509": {
       "id": "84a82920-4e84-41c3-9044-c1b1a13ce509",
@@ -209,5 +245,5 @@
       "updatedAt": 1777223896259
     }
   },
-  "updatedAt": 1777223896259
+  "updatedAt": 1777224431450
 }

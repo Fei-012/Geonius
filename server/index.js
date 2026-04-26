@@ -31,6 +31,8 @@ function createNode(partial) {
     order: partial.order ?? 0,
     x: partial.x ?? 0,
     y: partial.y ?? 0,
+    width: partial.width ?? 220,
+    height: partial.height ?? (partial.image ? 220 : 72),
     color: partial.color ?? "#111827",
     collapsed: partial.collapsed ?? false,
     image: partial.image,
