@@ -1,15 +1,19 @@
-const palette = ["#0f766e", "#f97316", "#2563eb", "#dc2626", "#7c3aed", "#059669", "#ca8a04"];
+const palette = ["#111827", "#d1d5db", "#f3f4f6", "#e5e7eb", "#cbd5e1", "#ddd6fe"];
 const rootId = "root";
 
 const state = {
-  document: null,
+  workspace: null,
   presence: [],
+  selectedNoteId: null,
   selectedNodeId: rootId,
-  viewport: { x: window.innerWidth / 2, y: 180, scale: 1 },
+  sidebarCollapsed: false,
+  expandedFolders: {},
+  search: "",
+  viewport: { x: window.innerWidth * 0.34, y: 220, scale: 1 },
   clientId: localStorage.getItem("geonius-client-id") || `client-${Math.random().toString(36).slice(2, 10)}`,
   user: {
     name: localStorage.getItem("geonius-user-name") || randomName(),
-    color: localStorage.getItem("geonius-user-color") || palette[Math.floor(Math.random() * palette.length)]
+    color: localStorage.getItem("geonius-user-color") || "#111827"
   }
 };
 
@@ -26,8 +30,12 @@ function randomName() {
   return `${adjectives[Math.floor(Math.random() * adjectives.length)]} ${animals[Math.floor(Math.random() * animals.length)]}`;
 }
 
+function uid(prefix) {
+  return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 function createNode(partial) {
-  const now = Date.now();
+  const stamp = Date.now();
   return {
     id: partial.id,
     parentId: partial.parentId ?? null,
@@ -35,28 +43,41 @@ function createNode(partial) {
     order: partial.order ?? 0,
     x: partial.x ?? 0,
     y: partial.y ?? 0,
-    color: partial.color ?? "#f97316",
+    color: partial.color ?? "#111827",
     collapsed: partial.collapsed ?? false,
     image: partial.image,
-    createdAt: partial.createdAt ?? now,
-    updatedAt: now
+    createdAt: partial.createdAt ?? stamp,
+    updatedAt: stamp
   };
 }
 
-function getChildren(parentId) {
-  return Object.values(state.document.nodes)
+function currentNote() {
+  return state.workspace?.notes?.[state.selectedNoteId] ?? null;
+}
+
+function currentDocument() {
+  return currentNote()?.document ?? null;
+}
+
+function currentFolder() {
+  const note = currentNote();
+  return note ? state.workspace.folders.find((folder) => folder.id === note.folderId) : null;
+}
+
+function getChildren(document, parentId) {
+  return Object.values(document.nodes)
     .filter((node) => node.parentId === parentId)
     .sort((a, b) => a.order - b.order || a.y - b.y);
 }
 
-function getSiblingIds(parentId) {
-  return getChildren(parentId).map((node) => node.id);
+function getSiblingIds(document, parentId) {
+  return getChildren(document, parentId).map((node) => node.id);
 }
 
-function isVisible(nodeId) {
-  let current = state.document.nodes[nodeId];
+function isVisible(document, nodeId) {
+  let current = document.nodes[nodeId];
   while (current && current.parentId) {
-    const parent = state.document.nodes[current.parentId];
+    const parent = document.nodes[current.parentId];
     if (!parent || parent.collapsed) {
       return false;
     }
@@ -65,82 +86,94 @@ function isVisible(nodeId) {
   return true;
 }
 
-function applyOperation(operation, shouldRender = true) {
-  state.document = applyOperationLocal(state.document, operation);
-  if (shouldRender) {
-    render();
+function filteredNoteIds(folder) {
+  if (!state.search.trim()) {
+    return folder.noteIds;
   }
+
+  const keyword = state.search.trim().toLowerCase();
+  return folder.noteIds.filter((noteId) => state.workspace.notes[noteId]?.title.toLowerCase().includes(keyword));
 }
 
-function applyOperationLocal(document, operation) {
-  const now = Date.now();
+function applyWorkspaceOperationLocally(workspace, operation) {
+  const stamp = Date.now();
 
-  function normalizeSiblingOrder(parentId) {
-    const ids = Object.values(document.nodes)
+  function getChildrenLocal(document, parentId) {
+    return Object.values(document.nodes)
       .filter((node) => node.parentId === parentId)
-      .sort((a, b) => a.order - b.order || a.y - b.y)
-      .map((node) => node.id);
-    ids.forEach((id, index) => {
-      document.nodes[id] = { ...document.nodes[id], order: index, updatedAt: now };
-    });
+      .sort((a, b) => a.order - b.order || a.y - b.y);
   }
 
-  function descendants(nodeId) {
-    const found = [];
-    const stack = [nodeId];
-    while (stack.length) {
-      const current = stack.pop();
-      for (const child of Object.values(document.nodes).filter((node) => node.parentId === current)) {
-        found.push(child.id);
-        stack.push(child.id);
-      }
-    }
-    return found;
-  }
-
-  function arrange(focusNodeId = rootId) {
+  function normalizeSiblingOrder(document, parentId) {
     const nodes = { ...document.nodes };
-    const root = nodes[rootId];
-    nodes[rootId] = { ...root, x: 0, y: 0 };
+    getChildrenLocal(document, parentId).forEach((node, index) => {
+      nodes[node.id] = { ...nodes[node.id], order: index, updatedAt: stamp };
+    });
+    return { ...document, nodes, updatedAt: stamp };
+  }
 
-    const rootSpacingX = 320;
-    const childSpacingX = 240;
-    const siblingSpacingY = 132;
+  function descendants(document, nodeId) {
+    const ids = [];
+    const stack = [nodeId];
+    while (stack.length > 0) {
+      const current = stack.pop();
+      getChildrenLocal(document, current).forEach((child) => {
+        ids.push(child.id);
+        stack.push(child.id);
+      });
+    }
+    return ids;
+  }
 
-    function children(parentId) {
-      return Object.values(nodes)
-        .filter((node) => node.parentId === parentId)
-        .sort((a, b) => a.order - b.order || a.y - b.y);
+  function arrangeDocument(document, focusNodeId = rootId) {
+    if (!document.nodes[rootId]) {
+      return document;
     }
 
-    function subtreeHeight(nodeId) {
+    const nodes = { ...document.nodes };
+    nodes[rootId] = { ...nodes[rootId], x: 0, y: 0 };
+    const rootSpacingX = 340;
+    const childSpacingX = 250;
+    const siblingSpacingY = 124;
+
+    function branchHeight(nodeId) {
       const node = nodes[nodeId];
-      if (!node || node.collapsed) return 1;
-      const list = children(nodeId);
-      if (!list.length) return 1;
-      return Math.max(1, list.reduce((sum, child) => sum + subtreeHeight(child.id), 0));
+      if (!node || node.collapsed) {
+        return 1;
+      }
+
+      const children = getChildrenLocal({ ...document, nodes }, nodeId);
+      if (children.length === 0) {
+        return 1;
+      }
+
+      return Math.max(1, children.reduce((sum, child) => sum + branchHeight(child.id), 0));
     }
 
-    function place(parentId, startY) {
+    function placeChildren(parentId, startY) {
       const parent = nodes[parentId];
-      const list = children(parentId);
-      if (!parent || !list.length) return;
-      const total = list.reduce((sum, child) => sum + subtreeHeight(child.id), 0);
-      let cursor = startY - ((total - 1) * siblingSpacingY) / 2;
-      for (const child of list) {
-        const units = subtreeHeight(child.id);
+      const children = getChildrenLocal({ ...document, nodes }, parentId);
+      if (!parent || children.length === 0) {
+        return;
+      }
+
+      const totalUnits = children.reduce((sum, child) => sum + branchHeight(child.id), 0);
+      let cursor = startY - ((totalUnits - 1) * siblingSpacingY) / 2;
+
+      children.forEach((child) => {
+        const units = branchHeight(child.id);
         const centerY = cursor + ((units - 1) * siblingSpacingY) / 2;
         nodes[child.id] = {
           ...nodes[child.id],
           x: parent.x + (parentId === rootId ? rootSpacingX : childSpacingX),
           y: centerY
         };
-        place(child.id, centerY);
+        placeChildren(child.id, centerY);
         cursor += units * siblingSpacingY;
-      }
+      });
     }
 
-    place(rootId, 0);
+    placeChildren(rootId, 0);
 
     if (focusNodeId !== rootId && nodes[focusNodeId] && document.nodes[focusNodeId]) {
       const drift = document.nodes[focusNodeId].y - nodes[focusNodeId].y;
@@ -153,70 +186,205 @@ function applyOperationLocal(document, operation) {
       }
     }
 
-    document = { ...document, nodes, updatedAt: now };
+    return { ...document, nodes, updatedAt: stamp };
+  }
+
+  function withNote(noteId, updater) {
+    const note = workspace.notes[noteId];
+    if (!note) {
+      return workspace;
+    }
+
+    const nextNote = updater(note);
+    return {
+      ...workspace,
+      notes: {
+        ...workspace.notes,
+        [noteId]: {
+          ...nextNote,
+          updatedAt: stamp
+        }
+      },
+      updatedAt: stamp
+    };
+  }
+
+  function applyDocumentOperation(document, docOperation) {
+    switch (docOperation.type) {
+      case "document/title":
+        return {
+          ...document,
+          title: docOperation.title,
+          updatedAt: stamp
+        };
+      case "node/upsert": {
+        const nextDocument = {
+          ...document,
+          nodes: {
+            ...document.nodes,
+            [docOperation.node.id]: {
+              ...docOperation.node,
+              updatedAt: stamp
+            }
+          },
+          updatedAt: stamp
+        };
+        return arrangeDocument(normalizeSiblingOrder(nextDocument, docOperation.node.parentId), docOperation.node.parentId ?? rootId);
+      }
+      case "node/update": {
+        const current = document.nodes[docOperation.nodeId];
+        if (!current) {
+          return document;
+        }
+        return {
+          ...document,
+          nodes: {
+            ...document.nodes,
+            [docOperation.nodeId]: {
+              ...current,
+              ...docOperation.changes,
+              updatedAt: stamp
+            }
+          },
+          updatedAt: stamp
+        };
+      }
+      case "node/remove": {
+        if (docOperation.nodeId === rootId) {
+          return document;
+        }
+        const parentId = document.nodes[docOperation.nodeId]?.parentId ?? null;
+        const nextNodes = { ...document.nodes };
+        [docOperation.nodeId, ...descendants(document, docOperation.nodeId)].forEach((id) => delete nextNodes[id]);
+        return arrangeDocument(
+          normalizeSiblingOrder(
+            {
+              ...document,
+              nodes: nextNodes,
+              updatedAt: stamp
+            },
+            parentId
+          )
+        );
+      }
+      case "nodes/reorder": {
+        const nextNodes = { ...document.nodes };
+        docOperation.orderedIds.forEach((id, index) => {
+          if (nextNodes[id] && nextNodes[id].parentId === docOperation.parentId) {
+            nextNodes[id] = { ...nextNodes[id], order: index, updatedAt: stamp };
+          }
+        });
+        return arrangeDocument(
+          {
+            ...document,
+            nodes: nextNodes,
+            updatedAt: stamp
+          },
+          docOperation.parentId ?? rootId
+        );
+      }
+      case "nodes/arrange":
+        return arrangeDocument(document, docOperation.focusNodeId);
+      default:
+        return document;
+    }
   }
 
   switch (operation.type) {
-    case "document/set":
-      document = { ...operation.document, version: document.version + 1, updatedAt: now };
-      break;
-    case "title/set":
-      document = { ...document, title: operation.title, version: document.version + 1, updatedAt: now };
-      break;
-    case "node/upsert":
-      document = {
-        ...document,
-        nodes: { ...document.nodes, [operation.node.id]: { ...operation.node, updatedAt: now } },
-        version: document.version + 1,
-        updatedAt: now
+    case "workspace/set":
+      return {
+        ...operation.workspace,
+        version: workspace.version + 1,
+        updatedAt: stamp
       };
-      normalizeSiblingOrder(operation.node.parentId);
-      arrange(operation.node.parentId ?? rootId);
-      break;
-    case "node/update": {
-      const current = document.nodes[operation.nodeId];
-      if (!current) break;
-      document = {
-        ...document,
-        nodes: {
-          ...document.nodes,
-          [operation.nodeId]: { ...current, ...operation.changes, updatedAt: now }
+    case "folder/create": {
+      const folderId = operation.folderId || uid("folder");
+      return {
+        ...workspace,
+        folders: [
+          ...workspace.folders,
+          {
+            id: folderId,
+            name: operation.name || "New folder",
+            noteIds: [],
+            createdAt: stamp,
+            updatedAt: stamp
+          }
+        ],
+        version: workspace.version + 1,
+        updatedAt: stamp
+      };
+    }
+    case "folder/update":
+      return {
+        ...workspace,
+        folders: workspace.folders.map((folder) =>
+          folder.id === operation.folderId ? { ...folder, ...operation.changes, updatedAt: stamp } : folder
+        ),
+        version: workspace.version + 1,
+        updatedAt: stamp
+      };
+    case "note/create": {
+      const noteId = operation.noteId || uid("note");
+      const title = operation.title || "Untitled note";
+      const folderId = operation.folderId;
+      const rootNode = createNode({ id: rootId, text: title, color: "#111111" });
+      const note = {
+        id: noteId,
+        folderId,
+        title,
+        document: {
+          id: uid("doc"),
+          title,
+          nodes: { [rootId]: rootNode },
+          updatedAt: stamp
         },
-        version: document.version + 1,
-        updatedAt: now
+        createdAt: stamp,
+        updatedAt: stamp
       };
-      break;
+      return {
+        ...workspace,
+        folders: workspace.folders.map((folder) =>
+          folder.id === folderId ? { ...folder, noteIds: [...folder.noteIds, noteId], updatedAt: stamp } : folder
+        ),
+        notes: {
+          ...workspace.notes,
+          [noteId]: note
+        },
+        version: workspace.version + 1,
+        updatedAt: stamp
+      };
     }
-    case "node/remove": {
-      if (operation.nodeId === rootId) break;
-      const parentId = document.nodes[operation.nodeId]?.parentId ?? null;
-      const nodes = { ...document.nodes };
-      [operation.nodeId, ...descendants(operation.nodeId)].forEach((id) => delete nodes[id]);
-      document = { ...document, nodes, version: document.version + 1, updatedAt: now };
-      normalizeSiblingOrder(parentId);
-      arrange(parentId ?? rootId);
-      break;
-    }
+    case "note/update":
+      return {
+        ...workspace,
+        notes: {
+          ...workspace.notes,
+          [operation.noteId]: {
+            ...workspace.notes[operation.noteId],
+            ...operation.changes,
+            updatedAt: stamp
+          }
+        },
+        version: workspace.version + 1,
+        updatedAt: stamp
+      };
+    case "document/title":
+    case "node/upsert":
+    case "node/update":
+    case "node/remove":
     case "nodes/reorder":
-      document = {
-        ...document,
-        nodes: { ...document.nodes },
-        version: document.version + 1,
-        updatedAt: now
-      };
-      operation.orderedIds.forEach((id, index) => {
-        if (document.nodes[id] && document.nodes[id].parentId === operation.parentId) {
-          document.nodes[id] = { ...document.nodes[id], order: index, updatedAt: now };
-        }
-      });
-      arrange(operation.parentId ?? rootId);
-      break;
     case "nodes/arrange":
-      document = { ...document, version: document.version + 1 };
-      arrange(operation.focusNodeId);
-      break;
+      return {
+        ...withNote(operation.noteId, (note) => ({
+          ...note,
+          document: applyDocumentOperation(note.document, operation)
+        })),
+        version: workspace.version + 1
+      };
+    default:
+      return workspace;
   }
-  return document;
 }
 
 async function postJson(url, payload) {
@@ -228,7 +396,8 @@ async function postJson(url, payload) {
 }
 
 function commitOperation(operation) {
-  applyOperation(operation);
+  state.workspace = applyWorkspaceOperationLocally(state.workspace, operation);
+  render();
   postJson("/operation", { clientId: state.clientId, operation }).catch(console.error);
 }
 
@@ -237,8 +406,195 @@ function syncPresence() {
     clientId: state.clientId,
     name: state.user.name,
     color: state.user.color,
+    selectedNoteId: state.selectedNoteId,
     selectedNodeId: state.selectedNodeId
   }).catch(console.error);
+}
+
+function setSelectedNote(noteId) {
+  if (!state.workspace.notes[noteId]) {
+    return;
+  }
+  state.selectedNoteId = noteId;
+  state.selectedNodeId = rootId;
+  state.viewport = { x: window.innerWidth * 0.34, y: 220, scale: 1 };
+  syncPresence();
+  render();
+}
+
+function createFolder() {
+  const name = window.prompt("Folder name", "New folder");
+  if (!name) {
+    return;
+  }
+  commitOperation({ type: "folder/create", name });
+}
+
+function createNote(folderId) {
+  const title = window.prompt("Note name", "Untitled note");
+  if (!title) {
+    return;
+  }
+  const noteId = uid("note");
+  commitOperation({ type: "note/create", folderId, title, noteId });
+  state.selectedNoteId = noteId;
+  state.selectedNodeId = rootId;
+  syncPresence();
+  render();
+}
+
+function createChildNode(parentId) {
+  const document = currentDocument();
+  if (!document) {
+    return;
+  }
+
+  const siblings = getChildren(document, parentId);
+  const parent = document.nodes[parentId];
+  const node = createNode({
+    id: uid("node"),
+    parentId,
+    text: "New idea",
+    order: siblings.length,
+    color: parentId === rootId ? "#d1d5db" : "#ffffff"
+  });
+  state.selectedNodeId = node.id;
+  commitOperation({ type: "node/upsert", noteId: state.selectedNoteId, node });
+  syncPresence();
+}
+
+function createSiblingNode(nodeId) {
+  const document = currentDocument();
+  if (!document) {
+    return;
+  }
+  const current = document.nodes[nodeId];
+  if (!current || !current.parentId) {
+    return;
+  }
+  const siblingIds = getSiblingIds(document, current.parentId);
+  const currentIndex = siblingIds.indexOf(nodeId);
+  const newId = uid("node");
+  siblingIds.splice(currentIndex + 1, 0, newId);
+  const node = createNode({
+    id: newId,
+    parentId: current.parentId,
+    text: "New sibling",
+    order: currentIndex + 1,
+    color: current.color
+  });
+  state.selectedNodeId = newId;
+  const nextWorkspace = applyWorkspaceOperationLocally(
+    applyWorkspaceOperationLocally(state.workspace, { type: "node/upsert", noteId: state.selectedNoteId, node }),
+    { type: "nodes/reorder", noteId: state.selectedNoteId, parentId: current.parentId, orderedIds: siblingIds }
+  );
+  commitOperation({ type: "workspace/set", workspace: nextWorkspace });
+  syncPresence();
+}
+
+function deleteSelectedNode() {
+  if (state.selectedNodeId === rootId) {
+    return;
+  }
+  commitOperation({ type: "node/remove", noteId: state.selectedNoteId, nodeId: state.selectedNodeId });
+  state.selectedNodeId = rootId;
+  syncPresence();
+}
+
+function toggleCollapse(nodeId) {
+  const document = currentDocument();
+  const node = document?.nodes?.[nodeId];
+  if (!node) {
+    return;
+  }
+  commitOperation({
+    type: "node/update",
+    noteId: state.selectedNoteId,
+    nodeId,
+    changes: { collapsed: !node.collapsed }
+  });
+}
+
+function moveSibling(nodeId, direction) {
+  const document = currentDocument();
+  if (!document) {
+    return;
+  }
+  const node = document.nodes[nodeId];
+  if (!node) {
+    return;
+  }
+  const ids = getSiblingIds(document, node.parentId);
+  const currentIndex = ids.indexOf(nodeId);
+  const targetIndex = currentIndex + direction;
+  if (targetIndex < 0 || targetIndex >= ids.length) {
+    return;
+  }
+  const reordered = [...ids];
+  const [moved] = reordered.splice(currentIndex, 1);
+  reordered.splice(targetIndex, 0, moved);
+  commitOperation({
+    type: "nodes/reorder",
+    noteId: state.selectedNoteId,
+    parentId: node.parentId,
+    orderedIds: reordered
+  });
+}
+
+function indentNode(nodeId) {
+  const document = currentDocument();
+  if (!document) {
+    return;
+  }
+  const node = document.nodes[nodeId];
+  if (!node?.parentId) {
+    return;
+  }
+  const siblings = getSiblingIds(document, node.parentId);
+  const currentIndex = siblings.indexOf(nodeId);
+  if (currentIndex <= 0) {
+    return;
+  }
+  const previousSibling = document.nodes[siblings[currentIndex - 1]];
+  const nodeUpdate = {
+    ...node,
+    parentId: previousSibling.id,
+    order: getChildren(document, previousSibling.id).length
+  };
+  commitOperation({ type: "node/upsert", noteId: state.selectedNoteId, node: nodeUpdate });
+}
+
+function outdentNode(nodeId) {
+  const document = currentDocument();
+  if (!document) {
+    return;
+  }
+  const node = document.nodes[nodeId];
+  if (!node?.parentId || node.parentId === rootId) {
+    return;
+  }
+  const parent = document.nodes[node.parentId];
+  if (!parent?.parentId) {
+    return;
+  }
+  const upperIds = getSiblingIds(document, parent.parentId);
+  const parentIndex = upperIds.indexOf(parent.id);
+  upperIds.splice(parentIndex + 1, 0, nodeId);
+  const nodeUpdate = {
+    ...node,
+    parentId: parent.parentId,
+    order: parentIndex + 1
+  };
+  const nextWorkspace = applyWorkspaceOperationLocally(
+    applyWorkspaceOperationLocally(state.workspace, { type: "node/upsert", noteId: state.selectedNoteId, node: nodeUpdate }),
+    { type: "nodes/reorder", noteId: state.selectedNoteId, parentId: parent.parentId, orderedIds: upperIds.filter((id, index, array) => array.indexOf(id) === index) }
+  );
+  commitOperation({ type: "workspace/set", workspace: nextWorkspace });
+}
+
+function selectedNode() {
+  const document = currentDocument();
+  return document?.nodes?.[state.selectedNodeId] ?? document?.nodes?.[rootId] ?? null;
 }
 
 function screenToCanvas(clientX, clientY) {
@@ -248,356 +604,407 @@ function screenToCanvas(clientX, clientY) {
   };
 }
 
-function createChild(parentId) {
-  const parent = state.document.nodes[parentId];
-  if (!parent) return;
-  const siblings = getChildren(parentId);
-  const node = createNode({
-    id: `node-${Math.random().toString(36).slice(2, 10)}`,
-    text: "New idea",
-    parentId,
-    order: siblings.length,
-    color: palette[siblings.length % palette.length]
-  });
-  state.selectedNodeId = node.id;
-  commitOperation({ type: "node/upsert", node });
-  syncPresence();
-}
-
-function createSibling(nodeId) {
-  const current = state.document.nodes[nodeId];
-  if (!current || !current.parentId) return;
-  const ids = getSiblingIds(current.parentId);
-  const index = ids.indexOf(nodeId);
-  const newId = `node-${Math.random().toString(36).slice(2, 10)}`;
-  ids.splice(index + 1, 0, newId);
-  const node = createNode({
-    id: newId,
-    text: "New sibling",
-    parentId: current.parentId,
-    order: index + 1,
-    color: current.color
-  });
-  state.selectedNodeId = newId;
-  commitOperation({
-    type: "document/set",
-    document: applyOperationLocal(
-      applyOperationLocal(structuredClone(state.document), { type: "node/upsert", node }),
-      { type: "nodes/reorder", parentId: current.parentId, orderedIds: ids }
-    )
-  });
-  syncPresence();
-}
-
-function moveNodeAmongSiblings(nodeId, direction) {
-  const node = state.document.nodes[nodeId];
-  if (!node) return;
-  const ids = getSiblingIds(node.parentId);
-  const currentIndex = ids.indexOf(nodeId);
-  const targetIndex = currentIndex + direction;
-  if (targetIndex < 0 || targetIndex >= ids.length) return;
-  const nextIds = [...ids];
-  const [moved] = nextIds.splice(currentIndex, 1);
-  nextIds.splice(targetIndex, 0, moved);
-  commitOperation({ type: "nodes/reorder", parentId: node.parentId, orderedIds: nextIds });
-}
-
-function indentNode(nodeId) {
-  const node = state.document.nodes[nodeId];
-  if (!node?.parentId) return;
-  const siblings = getSiblingIds(node.parentId);
-  const currentIndex = siblings.indexOf(nodeId);
-  if (currentIndex <= 0) return;
-  const previousSibling = state.document.nodes[siblings[currentIndex - 1]];
-  if (!previousSibling) return;
-  const nodeUpdate = { ...node, parentId: previousSibling.id, order: getChildren(previousSibling.id).length };
-  commitOperation({ type: "node/upsert", node: nodeUpdate });
-  if (previousSibling.collapsed) {
-    commitOperation({ type: "node/update", nodeId: previousSibling.id, changes: { collapsed: false } });
-  }
-}
-
-function outdentNode(nodeId) {
-  const node = state.document.nodes[nodeId];
-  if (!node?.parentId || node.parentId === rootId) return;
-  const parent = state.document.nodes[node.parentId];
-  if (!parent?.parentId) return;
-  const ids = getSiblingIds(parent.parentId);
-  const parentIndex = ids.indexOf(parent.id);
-  ids.splice(parentIndex + 1, 0, nodeId);
-  const nodeUpdate = { ...node, parentId: parent.parentId, order: parentIndex + 1 };
-  commitOperation({
-    type: "document/set",
-    document: applyOperationLocal(
-      applyOperationLocal(structuredClone(state.document), { type: "node/upsert", node: nodeUpdate }),
-      { type: "nodes/reorder", parentId: parent.parentId, orderedIds: ids.filter((id, idx, arr) => arr.indexOf(id) === idx) }
-    )
-  });
-}
-
-function removeSelectedNode() {
-  if (state.selectedNodeId === rootId) return;
-  commitOperation({ type: "node/remove", nodeId: state.selectedNodeId });
-  state.selectedNodeId = rootId;
-  syncPresence();
-}
-
-function toggleCollapse(nodeId) {
-  const node = state.document.nodes[nodeId];
-  if (!node) return;
-  commitOperation({ type: "node/update", nodeId, changes: { collapsed: !node.collapsed } });
-}
-
-function renderOutline(nodeId, depth) {
-  const node = state.document.nodes[nodeId];
-  const children = getChildren(nodeId);
-  const watchers = state.presence.filter((member) => member.selectedNodeId === nodeId);
-  const branch = document.createElement("div");
-  branch.className = "outline-branch";
-
-  const row = document.createElement("div");
-  row.className = `outline-row ${state.selectedNodeId === nodeId ? "active" : ""}`;
-  row.style.paddingLeft = `${depth * 18 + 10}px`;
-
-  const toggle = document.createElement("button");
-  toggle.className = "tree-toggle";
-  toggle.textContent = children.length ? (node.collapsed ? "+" : "-") : "•";
-  toggle.onclick = () => {
-    state.selectedNodeId = nodeId;
-    syncPresence();
-    render();
-  };
-
-  const input = document.createElement("input");
-  input.className = "outline-input";
-  input.value = node.text;
-  input.onfocus = () => {
-    state.selectedNodeId = nodeId;
-    syncPresence();
-    render();
-  };
-  input.oninput = (event) => {
-    commitOperation({ type: "node/update", nodeId, changes: { text: event.target.value } });
-  };
-  input.onkeydown = (event) => {
-    if (event.key === "Enter") {
-      event.preventDefault();
-      createSibling(nodeId);
-    } else if (event.key === "Tab" && event.shiftKey) {
-      event.preventDefault();
-      outdentNode(nodeId);
-    } else if (event.key === "Tab") {
-      event.preventDefault();
-      indentNode(nodeId);
-    } else if (event.altKey && event.key === "ArrowUp") {
-      event.preventDefault();
-      moveNodeAmongSiblings(nodeId, -1);
-    } else if (event.altKey && event.key === "ArrowDown") {
-      event.preventDefault();
-      moveNodeAmongSiblings(nodeId, 1);
-    }
-  };
-
-  const presence = document.createElement("div");
-  presence.className = "mini-presence";
-  watchers.forEach((member) => {
-    const dot = document.createElement("span");
-    dot.className = "mini-presence-dot";
-    dot.style.background = member.color;
-    dot.title = member.name;
-    presence.appendChild(dot);
-  });
-
-  row.append(toggle, input, presence);
-  branch.appendChild(row);
-  if (!node.collapsed) {
-    children.forEach((child) => branch.appendChild(renderOutline(child.id, depth + 1)));
-  }
-  return branch;
-}
-
-function render() {
-  const app = document.getElementById("app");
-  const selectedNode = state.document.nodes[state.selectedNodeId] || state.document.nodes[rootId];
-  const visibleNodes = Object.values(state.document.nodes).filter((node) => isVisible(node.id));
-  const otherUsers = state.presence.filter((member) => member.name !== state.user.name);
-
-  app.innerHTML = `
-    <div class="app-shell">
-      <aside class="sidebar">
-        <div>
-          <p class="eyebrow">Geonius</p>
-          <h1>Shared Mindmap</h1>
-          <p class="subtle">Outline-first collaboration with live syncing, branch arranging, and image cards inside nodes.</p>
+function renderSidebar() {
+  return `
+    <div class="sidebar-rail">
+      <button class="rail-button" id="toggle-sidebar">${state.sidebarCollapsed ? ">" : "<"}</button>
+      <button class="rail-button" id="create-folder-rail">+</button>
+    </div>
+    <aside class="sidebar ${state.sidebarCollapsed ? "collapsed" : ""}">
+      <div class="sidebar-top">
+        <div class="sidebar-logo">
+          <span class="logo-dot"></span>
+          <strong>Geonius</strong>
         </div>
-        <div class="panel">
-          <div class="panel-row"><span>Status</span><strong class="connected">Live</strong></div>
-          <div class="panel-row"><span>You</span><strong>${state.user.name}</strong></div>
-          <div class="panel-row"><span>Version</span><strong>${state.document.version}</strong></div>
-          <div class="presence-list" id="presence-list"></div>
+        <button class="dark-button" id="create-folder">New folder</button>
+      </div>
+      <div class="search-shell">
+        <input class="search-input" id="search-input" placeholder="Search notes" value="${escapeHtml(state.search)}" />
+      </div>
+      <div class="folder-list" id="folder-list"></div>
+      <div class="sidebar-footer">
+        <div class="presence-strip" id="presence-strip"></div>
+      </div>
+    </aside>
+  `;
+}
+
+function renderMainShell(note, folder) {
+  return `
+    <main class="workspace-main">
+      <header class="topbar">
+        <div class="topbar-left">
+          <div class="breadcrumbs">${escapeHtml(folder?.name || "Folder")} /</div>
+          <input class="note-title-input" id="note-title-input" value="${escapeHtml(note.title)}" />
         </div>
-        <div class="panel">
-          <div class="panel-heading"><h2>Outline</h2><button class="ghost" id="arrange-all">Arrange</button></div>
-          <div class="outline-tree" id="outline-tree"></div>
-          <p class="hint">\`Enter\` sibling, \`Tab\` indent, \`Shift+Tab\` outdent, \`Alt+↑/↓\` reorder.</p>
+        <div class="topbar-right">
+          <span class="mode-pill active">Mind Map</span>
+          <button class="ghost-pill" disabled>Note Mode Later</button>
+          <div class="avatar-stack" id="avatar-stack"></div>
         </div>
-        <div class="panel">
-          <h2>Selected Node</h2>
-          <input class="title-input" id="selected-title" value="${escapeHtml(selectedNode.text)}" />
-          <label class="stack">Color<input type="color" id="selected-color" value="${selectedNode.color}" /></label>
-          <label class="stack">Image<input type="file" accept="image/*" id="selected-image" /></label>
-          <div class="button-row">
-            <button id="add-child">Add child</button>
-            <button class="ghost" id="add-sibling" ${selectedNode.id === rootId ? "disabled" : ""}>Add sibling</button>
-            <button class="ghost" id="toggle-collapse">${selectedNode.collapsed ? "Expand" : "Collapse"}</button>
-            <button class="danger" id="delete-node" ${selectedNode.id === rootId ? "disabled" : ""}>Delete</button>
-          </div>
-          <p class="hint">Canvas shortcuts: \`Tab\` child, \`Space\` collapse, \`Backspace\` delete.</p>
+      </header>
+      <section class="canvas-frame">
+        <div class="floating-tools">
+          <button class="tool-button" id="add-child-button">+ Child</button>
+          <button class="tool-button" id="add-sibling-button">+ Sibling</button>
+          <button class="tool-button" id="attach-photo-button">Photo</button>
+          <button class="tool-button" id="arrange-note-button">Arrange</button>
+          <button class="tool-button danger-lite" id="delete-node-button">Delete</button>
+          <button class="tool-button" id="zoom-in-button">+</button>
+          <button class="tool-button" id="zoom-out-button">-</button>
         </div>
-      </aside>
-      <main class="canvas-shell">
-        <div class="toolbar">
-          <button id="reset-view">Reset view</button>
-          <button class="ghost" id="arrange-branch">Reflow branch</button>
-          <span>${Math.round(state.viewport.scale * 100)}%</span>
-        </div>
+        <input type="file" accept="image/*" id="attach-photo-input" hidden />
         <div class="canvas" id="canvas">
           <svg class="connections" id="connections"></svg>
           <div class="canvas-viewport" id="canvas-viewport"></div>
         </div>
-      </main>
-    </div>
+      </section>
+    </main>
   `;
+}
 
-  const presenceList = document.getElementById("presence-list");
-  state.presence.forEach((member) => {
-    const chip = document.createElement("div");
-    chip.className = "presence-chip";
-    chip.innerHTML = `<span class="presence-dot" style="background:${member.color}"></span>${escapeHtml(member.name)}`;
-    presenceList.appendChild(chip);
+function renderFolderTree() {
+  const folderList = document.getElementById("folder-list");
+  folderList.innerHTML = "";
+
+  state.workspace.folders.forEach((folder) => {
+    const noteIds = filteredNoteIds(folder);
+    if (state.search.trim() && noteIds.length === 0 && !folder.name.toLowerCase().includes(state.search.toLowerCase())) {
+      return;
+    }
+
+    const expanded = state.expandedFolders[folder.id] !== false;
+    const folderEl = document.createElement("section");
+    folderEl.className = "folder-card";
+
+    const header = document.createElement("div");
+    header.className = "folder-header";
+    header.innerHTML = `
+      <button class="folder-toggle">${expanded ? "v" : ">"}</button>
+      <input class="folder-name-input" value="${escapeHtml(folder.name)}" />
+      <button class="folder-add-note">+</button>
+    `;
+
+    header.querySelector(".folder-toggle").onclick = () => {
+      state.expandedFolders[folder.id] = !expanded;
+      render();
+    };
+
+    header.querySelector(".folder-add-note").onclick = () => createNote(folder.id);
+
+    header.querySelector(".folder-name-input").onchange = (event) => {
+      commitOperation({
+        type: "folder/update",
+        folderId: folder.id,
+        changes: { name: event.target.value }
+      });
+    };
+
+    folderEl.appendChild(header);
+
+    if (expanded) {
+      const notesEl = document.createElement("div");
+      notesEl.className = "note-list";
+
+      noteIds.forEach((noteId) => {
+        const note = state.workspace.notes[noteId];
+        const noteUsers = state.presence.filter((member) => member.selectedNoteId === noteId);
+        const item = document.createElement("button");
+        item.className = `note-item ${state.selectedNoteId === noteId ? "active" : ""}`;
+        item.innerHTML = `
+          <span class="note-item-title">${escapeHtml(note.title)}</span>
+          <span class="note-user-count">${noteUsers.length > 0 ? noteUsers.length : ""}</span>
+        `;
+        item.onclick = () => setSelectedNote(noteId);
+        notesEl.appendChild(item);
+      });
+
+      folderEl.appendChild(notesEl);
+    }
+
+    folderList.appendChild(folderEl);
   });
+}
 
-  const outlineTree = document.getElementById("outline-tree");
-  outlineTree.appendChild(renderOutline(rootId, 0));
+function renderPresence() {
+  const strip = document.getElementById("presence-strip");
+  const stack = document.getElementById("avatar-stack");
+  if (strip) {
+    strip.innerHTML = "";
+  }
+  if (stack) {
+    stack.innerHTML = "";
+  }
 
-  document.getElementById("selected-title").oninput = (event) => {
-    commitOperation({ type: "node/update", nodeId: selectedNode.id, changes: { text: event.target.value } });
-  };
-  document.getElementById("selected-color").oninput = (event) => {
-    commitOperation({ type: "node/update", nodeId: selectedNode.id, changes: { color: event.target.value } });
-  };
-  document.getElementById("selected-image").onchange = async (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    const dataUrl = await fileToDataUrl(file);
-    commitOperation({ type: "node/update", nodeId: selectedNode.id, changes: { image: dataUrl } });
-  };
-  document.getElementById("add-child").onclick = () => createChild(selectedNode.id);
-  document.getElementById("add-sibling").onclick = () => createSibling(selectedNode.id);
-  document.getElementById("toggle-collapse").onclick = () => toggleCollapse(selectedNode.id);
-  document.getElementById("delete-node").onclick = removeSelectedNode;
-  document.getElementById("arrange-all").onclick = () => commitOperation({ type: "nodes/arrange" });
-  document.getElementById("arrange-branch").onclick = () => commitOperation({ type: "nodes/arrange", focusNodeId: selectedNode.id });
-  document.getElementById("reset-view").onclick = () => {
-    state.viewport = { x: window.innerWidth / 2, y: 180, scale: 1 };
-    render();
-  };
+  state.presence.forEach((member) => {
+    const avatar = document.createElement("div");
+    avatar.className = "avatar-chip";
+    avatar.style.background = member.color || "#111827";
+    avatar.textContent = member.name.slice(0, 1).toUpperCase();
+    avatar.title = member.name;
+    strip?.appendChild(avatar.cloneNode(true));
+    stack?.appendChild(avatar);
+  });
+}
 
-  const canvas = document.getElementById("canvas");
-  const viewport = document.getElementById("canvas-viewport");
-  viewport.style.transform = `translate(${state.viewport.x}px, ${state.viewport.y}px) scale(${state.viewport.scale})`;
+function renderCanvas() {
+  const note = currentNote();
+  const documentModel = currentDocument();
+  if (!note || !documentModel) {
+    return;
+  }
 
-  const connections = document.getElementById("connections");
-  connections.innerHTML = `<g transform="translate(${state.viewport.x} ${state.viewport.y}) scale(${state.viewport.scale})"></g>`;
-  const g = connections.querySelector("g");
+  const viewportEl = document.getElementById("canvas-viewport");
+  const canvasEl = document.getElementById("canvas");
+  const connectionsEl = document.getElementById("connections");
+  const currentSelectedNode = selectedNode();
+  const visibleNodes = Object.values(documentModel.nodes).filter((node) => isVisible(documentModel, node.id));
+  const otherUsers = state.presence.filter((member) => member.socketId !== state.clientId && member.name !== state.user.name);
+
+  viewportEl.innerHTML = "";
+  viewportEl.style.transform = `translate(${state.viewport.x}px, ${state.viewport.y}px) scale(${state.viewport.scale})`;
+
+  connectionsEl.innerHTML = `<g transform="translate(${state.viewport.x} ${state.viewport.y}) scale(${state.viewport.scale})"></g>`;
+  const group = connectionsEl.querySelector("g");
+
   visibleNodes
     .filter((node) => node.parentId)
     .forEach((node) => {
-      const parent = state.document.nodes[node.parentId];
+      const parent = documentModel.nodes[node.parentId];
+      if (!parent) {
+        return;
+      }
       const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      path.setAttribute("d", `M ${parent.x} ${parent.y} C ${parent.x + 105} ${parent.y}, ${node.x - 105} ${node.y}, ${node.x} ${node.y}`);
-      path.setAttribute("stroke", "rgba(15, 23, 42, 0.18)");
-      path.setAttribute("stroke-width", String(3 / state.viewport.scale));
+      path.setAttribute("d", `M ${parent.x} ${parent.y} C ${parent.x + 110} ${parent.y}, ${node.x - 110} ${node.y}, ${node.x} ${node.y}`);
+      path.setAttribute("stroke", "#d1d5db");
+      path.setAttribute("stroke-width", String(2 / state.viewport.scale));
       path.setAttribute("fill", "none");
-      g.appendChild(path);
+      group.appendChild(path);
     });
 
   visibleNodes.forEach((node) => {
     const card = document.createElement("article");
-    card.className = `node-card ${state.selectedNodeId === node.id ? "selected" : ""}`;
+    card.className = `map-node ${state.selectedNodeId === node.id ? "selected" : ""} ${node.id === rootId ? "root-node" : ""}`;
     card.style.left = `${node.x}px`;
     card.style.top = `${node.y}px`;
-    card.style.borderColor = node.color;
+    card.style.borderColor = node.color || "#111827";
+
+    const viewers = otherUsers.filter((member) => member.selectedNoteId === state.selectedNoteId && member.selectedNodeId === node.id);
+
     card.innerHTML = `
-      <span class="node-accent" style="background:${node.color}"></span>
-      <div class="node-title-row">
-        <h3>${escapeHtml(node.text)}</h3>
-        <div class="node-watchers"></div>
+      <div class="node-row">
+        <div class="node-presence">${viewers.map((member) => `<span class="node-user-dot" style="background:${member.color}"></span>`).join("")}</div>
+        <button class="node-collapse">${getChildren(documentModel, node.id).length ? (node.collapsed ? "+" : "-") : "."}</button>
       </div>
-      ${node.image ? `<img src="${node.image}" alt="${escapeHtml(node.text)}" class="node-image" />` : ""}
-      <p>${getChildren(node.id).length} linked ideas</p>
+      <textarea class="node-editor" rows="${node.id === rootId ? 1 : Math.max(1, Math.min(6, node.text.length / 18 + 1))}">${escapeHtml(node.text)}</textarea>
+      ${node.image ? `<img class="node-image" src="${node.image}" alt="${escapeHtml(node.text)}" />` : ""}
     `;
-    otherUsers
-      .filter((member) => member.selectedNodeId === node.id)
-      .forEach((member) => {
-        const dot = document.createElement("span");
-        dot.className = "node-watcher";
-        dot.style.background = member.color;
-        dot.title = member.name;
-        card.querySelector(".node-watchers").appendChild(dot);
-      });
+
     card.onpointerdown = (event) => {
       event.stopPropagation();
       state.selectedNodeId = node.id;
       syncPresence();
       const point = screenToCanvas(event.clientX, event.clientY);
-      dragState = { nodeId: node.id, offsetX: point.x - node.x, offsetY: point.y - node.y };
+      dragState = {
+        nodeId: node.id,
+        offsetX: point.x - node.x,
+        offsetY: point.y - node.y
+      };
       render();
     };
-    card.ondblclick = () => createChild(node.id);
-    viewport.appendChild(card);
+
+    card.ondblclick = () => createChildNode(node.id);
+
+    const editor = card.querySelector(".node-editor");
+    editor.onfocus = () => {
+      state.selectedNodeId = node.id;
+      syncPresence();
+      render();
+    };
+    editor.oninput = (event) => {
+      const text = event.target.value;
+      if (node.id === rootId) {
+        commitOperation({
+          type: "note/update",
+          noteId: state.selectedNoteId,
+          changes: { title: text }
+        });
+        commitOperation({
+          type: "node/update",
+          noteId: state.selectedNoteId,
+          nodeId: rootId,
+          changes: { text }
+        });
+      } else {
+        commitOperation({
+          type: "node/update",
+          noteId: state.selectedNoteId,
+          nodeId: node.id,
+          changes: { text }
+        });
+      }
+    };
+    editor.onkeydown = (event) => {
+      if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault();
+        createSiblingNode(node.id);
+      } else if (event.key === "Tab" && event.shiftKey) {
+        event.preventDefault();
+        outdentNode(node.id);
+      } else if (event.key === "Tab") {
+        event.preventDefault();
+        indentNode(node.id);
+      } else if (event.altKey && event.key === "ArrowUp") {
+        event.preventDefault();
+        moveSibling(node.id, -1);
+      } else if (event.altKey && event.key === "ArrowDown") {
+        event.preventDefault();
+        moveSibling(node.id, 1);
+      }
+    };
+
+    card.querySelector(".node-collapse").onclick = (event) => {
+      event.stopPropagation();
+      toggleCollapse(node.id);
+    };
+
+    viewportEl.appendChild(card);
   });
 
-  canvas.onpointerdown = (event) => {
-    if (event.target === canvas) {
+  document.getElementById("note-title-input").oninput = (event) => {
+    const title = event.target.value;
+    commitOperation({ type: "note/update", noteId: state.selectedNoteId, changes: { title } });
+    commitOperation({ type: "node/update", noteId: state.selectedNoteId, nodeId: rootId, changes: { text: title } });
+  };
+
+  document.getElementById("add-child-button").onclick = () => createChildNode(currentSelectedNode.id);
+  document.getElementById("add-sibling-button").onclick = () => createSiblingNode(currentSelectedNode.id);
+  document.getElementById("delete-node-button").onclick = deleteSelectedNode;
+  document.getElementById("arrange-note-button").onclick = () => commitOperation({ type: "nodes/arrange", noteId: state.selectedNoteId, focusNodeId: state.selectedNodeId });
+  document.getElementById("zoom-in-button").onclick = () => {
+    state.viewport.scale = Math.min(2, state.viewport.scale + 0.1);
+    render();
+  };
+  document.getElementById("zoom-out-button").onclick = () => {
+    state.viewport.scale = Math.max(0.4, state.viewport.scale - 0.1);
+    render();
+  };
+
+  const photoInput = document.getElementById("attach-photo-input");
+  document.getElementById("attach-photo-button").onclick = () => photoInput.click();
+  photoInput.onchange = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+    const dataUrl = await fileToDataUrl(file);
+    commitOperation({
+      type: "node/update",
+      noteId: state.selectedNoteId,
+      nodeId: state.selectedNodeId,
+      changes: { image: dataUrl }
+    });
+    event.target.value = "";
+  };
+
+  canvasEl.onpointerdown = (event) => {
+    if (event.target === canvasEl) {
       state.selectedNodeId = rootId;
       syncPresence();
       panState = { x: event.clientX, y: event.clientY };
       render();
     }
   };
-  canvas.onpointermove = (event) => {
+
+  canvasEl.onpointermove = (event) => {
     if (dragState) {
       const point = screenToCanvas(event.clientX, event.clientY);
       commitOperation({
         type: "node/update",
+        noteId: state.selectedNoteId,
         nodeId: dragState.nodeId,
-        changes: { x: point.x - dragState.offsetX, y: point.y - dragState.offsetY }
+        changes: {
+          x: point.x - dragState.offsetX,
+          y: point.y - dragState.offsetY
+        }
       });
-    } else if (panState) {
+      return;
+    }
+
+    if (panState) {
       state.viewport.x += event.clientX - panState.x;
       state.viewport.y += event.clientY - panState.y;
       panState = { x: event.clientX, y: event.clientY };
       render();
     }
   };
-  canvas.onpointerup = () => {
+
+  canvasEl.onpointerup = () => {
     dragState = null;
     panState = null;
   };
-  canvas.onpointerleave = () => {
+
+  canvasEl.onpointerleave = () => {
     dragState = null;
     panState = null;
   };
-  canvas.onwheel = (event) => {
-    const delta = event.deltaY > 0 ? -0.08 : 0.08;
-    state.viewport.scale = Math.max(0.45, Math.min(1.8, state.viewport.scale + delta));
-    render();
+
+  canvasEl.onwheel = (event) => {
+    if (event.ctrlKey || event.metaKey || true) {
+      event.preventDefault();
+      const delta = event.deltaY > 0 ? -0.07 : 0.07;
+      state.viewport.scale = Math.max(0.4, Math.min(2, state.viewport.scale + delta));
+      render();
+    }
   };
 }
 
+function renderEmptyState() {
+  const app = document.getElementById("app");
+  app.innerHTML = `
+    <div class="empty-shell">
+      <div class="empty-card">
+        <h1>Loading Geonius</h1>
+        <p>Preparing your shared mind map workspace.</p>
+      </div>
+    </div>
+  `;
+}
+
+function render() {
+  const app = document.getElementById("app");
+  if (!state.workspace || !state.selectedNoteId || !currentNote()) {
+    renderEmptyState();
+    return;
+  }
+
+  const note = currentNote();
+  const folder = currentFolder();
+  app.innerHTML = `
+    <div class="layout-shell ${state.sidebarCollapsed ? "sidebar-hidden" : ""}">
+      ${renderSidebar()}
+      ${renderMainShell(note, folder)}
+    </div>
+  `;
+
+  document.getElementById("toggle-sidebar").onclick = () => {
+    state.sidebarCollapsed = !state.sidebarCollapsed;
+    render();
+  };
+  document.getElementById("create-folder-rail").onclick = createFolder;
+  document.getElementById("create-folder").onclick = createFolder;
+  document.getElementById("search-input").oninput = (event) => {
+    state.search = event.target.value;
+    renderFolderTree();
+  };
+
+  renderFolderTree();
+  renderPresence();
+  renderCanvas();
+}
+
 function escapeHtml(value) {
-  return String(value)
+  return String(value ?? "")
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
@@ -614,15 +1021,20 @@ function fileToDataUrl(file) {
 }
 
 window.addEventListener("keydown", (event) => {
+  if (!state.workspace || !state.selectedNoteId) {
+    return;
+  }
+
   if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
     return;
   }
+
   if (event.key === "Tab") {
     event.preventDefault();
-    createChild(state.selectedNodeId);
+    createChildNode(state.selectedNodeId);
   } else if (event.key === "Backspace") {
     event.preventDefault();
-    removeSelectedNode();
+    deleteSelectedNode();
   } else if (event.key === " ") {
     event.preventDefault();
     toggleCollapse(state.selectedNodeId);
@@ -630,30 +1042,54 @@ window.addEventListener("keydown", (event) => {
 });
 
 async function start() {
-  const response = await fetch("/document");
+  renderEmptyState();
+
+  const response = await fetch("/workspace");
   const payload = await response.json();
-  state.document = payload.document;
+  state.workspace = payload.workspace;
   state.presence = payload.presence;
+
+  const firstFolder = state.workspace.folders[0];
+  state.selectedNoteId = firstFolder?.noteIds?.[0] ?? Object.keys(state.workspace.notes)[0] ?? null;
+  if (firstFolder) {
+    state.expandedFolders[firstFolder.id] = true;
+  }
+
   render();
   syncPresence();
 
-  const events = new EventSource(`/events?clientId=${encodeURIComponent(state.clientId)}`);
-  events.onmessage = (event) => {
+  const source = new EventSource(`/events?clientId=${encodeURIComponent(state.clientId)}`);
+  source.onmessage = (event) => {
     const payload = JSON.parse(event.data);
     if (payload.type === "hello" && payload.clientId) {
       state.clientId = payload.clientId;
       localStorage.setItem("geonius-client-id", state.clientId);
+      return;
     }
     if (payload.type === "presence") {
       state.presence = payload.presence;
-      render();
+      renderPresence();
+      renderCanvas();
+      return;
     }
     if (payload.type === "operation") {
-      applyOperation(payload.operation);
+      state.workspace = applyWorkspaceOperationLocally(state.workspace, payload.operation);
+      if (!state.workspace.notes[state.selectedNoteId]) {
+        state.selectedNoteId = state.workspace.folders[0]?.noteIds?.[0] ?? Object.keys(state.workspace.notes)[0] ?? null;
+      }
+      render();
     }
   };
 }
 
 start().catch((error) => {
-  document.getElementById("app").innerHTML = `<div style="padding:24px;font-family:sans-serif">Failed to start Geonius: ${escapeHtml(error.message)}</div>`;
+  const app = document.getElementById("app");
+  app.innerHTML = `
+    <div class="empty-shell">
+      <div class="empty-card">
+        <h1>Unable to start Geonius</h1>
+        <p>${escapeHtml(error.message)}</p>
+      </div>
+    </div>
+  `;
 });

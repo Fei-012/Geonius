@@ -1,57 +1,42 @@
 # Geonius Live Mindmap
 
-A collaborative mindmap web app with live multi-user editing, image attachments, draggable nodes, collapse/expand behavior, outline-style editing, and shared presence.
+A shared mindmap website with a MuBu-style workspace layout: collapsible sidebar, folders, notes, a large white canvas, inline live editing, draggable nodes, and image attachments.
 
 ## What it does
 
-- Live sync between connected users with `Socket.IO`
-- Operation-based sync instead of full-document replacement
-- Mindmap nodes with parent/child structure
-- Sidebar outline editor with keyboard shortcuts
-- Drag nodes around the canvas
-- Auto-arrange branches into a cleaner tree layout
-- Collapse and expand branches
-- Attach images directly to nodes
-- Shared presence list plus collaborator indicators on active nodes
-- Simple server-side JSON persistence in `server/data/document.json`
-
-## Stack
-
-- React + TypeScript + Vite
-- Express + Socket.IO
+- Shared workspace with folders and notes
+- Left rail plus collapsible sidebar
+- One click to create folders and notes
+- Open any note into a full-screen mindmap canvas
+- Edit text directly inside map nodes on the page
+- Live collaboration for everyone on the same workspace link
+- Drag nodes, collapse branches, reorder branches, indent and outdent
+- Attach photos to any selected node
+- Server-side persistence in `server/data/workspace.json`
 
 ## Run locally
 
-1. Install a JavaScript package manager and project dependencies.
-2. Start the frontend and backend together:
-
 ```bash
-npm install
-npm run dev
+node server/index.js
 ```
 
-3. Open the frontend at `http://localhost:5173`
-4. Open a second browser tab or device to test live collaboration
+Then open:
 
-The Socket.IO server runs on `http://localhost:3001` by default.
+- `http://localhost:3001` on your own computer
+
+If other people are on the same local network, they can use your LAN address shown when the server starts.
 
 ## Keyboard shortcuts
 
-- `Enter`: add sibling from the outline
-- `Tab`: indent in the outline, or add child from the canvas
-- `Shift+Tab`: outdent in the outline
-- `Alt+Up/Down`: reorder within siblings
-- `Space`: collapse or expand selected node
-- `Backspace`: delete selected node
+- `Tab`: add a child from the canvas
+- `Enter`: add a sibling while typing in a node
+- `Shift+Tab`: outdent a node while typing
+- `Alt+Up/Down`: reorder a node among siblings
+- `Space`: collapse or expand the selected node
+- `Backspace`: delete the selected node
 
-## Production build
+## Current scope
 
-```bash
-npm run build
-npm run start
-```
-
-## Notes
-
-- The frontend reads `VITE_SOCKET_URL` if you want the client to connect to a different realtime server.
-- The current collaboration model is operation-based and much safer than full-document syncing, but it is still not a full CRDT. For true Google-Docs-style concurrent text conflict handling, the next upgrade path would be a CRDT layer like `Yjs`.
+- Mind map mode is implemented
+- Note-mode conversion is intentionally left for later
+- For true worldwide sharing, you still need deployment or a tunnel; local and LAN sharing work from this server

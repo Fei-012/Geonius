@@ -1,0 +1,118 @@
+{
+  "id": "shared-workspace",
+  "title": "Geonius",
+  "version": 140,
+  "folders": [
+    {
+      "id": "3e3dc572-e5bf-4aea-884c-3ee3e4043180",
+      "name": "My documents",
+      "noteIds": [
+        "2a5aae46-e94e-40a3-aebd-e544ff99d912"
+      ],
+      "createdAt": 1777222721462,
+      "updatedAt": 1777222721462
+    }
+  ],
+  "notes": {
+    "2a5aae46-e94e-40a3-aebd-e544ff99d912": {
+      "id": "2a5aae46-e94e-40a3-aebd-e544ff99d912",
+      "folderId": "3e3dc572-e5bf-4aea-884c-3ee3e4043180",
+      "title": "Live Collaborative Mindmap",
+      "document": {
+        "id": "default-room",
+        "title": "Live Collaborative Mindmap",
+        "version": 140,
+        "nodes": {
+          "root": {
+            "id": "root",
+            "parentId": null,
+            "text": "Geonius",
+            "order": 0,
+            "x": 0,
+            "y": 0,
+            "color": "#0f766e",
+            "collapsed": false,
+            "createdAt": 1777221867834,
+            "updatedAt": 1777222313694
+          },
+          "30ce9c96-f863-4afb-b755-d2ad7290f136": {
+            "id": "30ce9c96-f863-4afb-b755-d2ad7290f136",
+            "parentId": "root",
+            "text": "Strategy",
+            "order": 0,
+            "x": 320,
+            "y": -330,
+            "color": "#f97316",
+            "collapsed": false,
+            "createdAt": 1777221867834,
+            "updatedAt": 1777222334211
+          },
+          "9db3abb1-c53f-4da1-8c8d-c32796aa7d75": {
+            "id": "9db3abb1-c53f-4da1-8c8d-c32796aa7d75",
+            "parentId": "root",
+            "text": "Execution",
+            "order": 1,
+            "x": 320,
+            "y": -198,
+            "color": "#2563eb",
+            "collapsed": false,
+            "createdAt": 1777221867834,
+            "updatedAt": 1777222334211
+          },
+          "d30c6292-9e79-4d95-874a-a8890373952f": {
+            "id": "d30c6292-9e79-4d95-874a-a8890373952f",
+            "parentId": "root",
+            "text": "Images",
+            "order": 2,
+            "x": 320,
+            "y": -66,
+            "color": "#9333ea",
+            "collapsed": false,
+            "createdAt": 1777221867834,
+            "updatedAt": 1777222334211
+          },
+          "node-vf965rlo": {
+            "id": "node-vf965rlo",
+            "parentId": "root",
+            "text": "H",
+            "order": 3,
+            "x": 320,
+            "y": 66,
+            "color": "#dc2626",
+            "collapsed": true,
+            "createdAt": 1777222324497,
+            "updatedAt": 1777222356578
+          },
+          "node-vmf33ud1": {
+            "id": "node-vmf33ud1",
+            "parentId": "root",
+            "text": "New sibling",
+            "order": 4,
+            "x": 320,
+            "y": 198,
+            "color": "#dc2626",
+            "collapsed": false,
+            "createdAt": 1777222333595,
+            "updatedAt": 1777222334211
+          },
+          "node-x4z0m8ak": {
+            "id": "node-x4z0m8ak",
+            "parentId": "root",
+            "text": "New sibling",
+            "order": 5,
+            "x": 320,
+            "y": 330,
+            "color": "#dc2626",
+            "collapsed": true,
+            "createdAt": 1777222334211,
+            "updatedAt": 1777222337352
+          }
+        },
+        "updatedAt": 1777222356578
+      },
+      "createdAt": 1777222721462,
+      "updatedAt": 1777222721462
+    }
+  },
+  "updatedAt": 1777222721462
+}
