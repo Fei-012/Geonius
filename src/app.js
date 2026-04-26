@@ -525,6 +525,7 @@ function createChildNode(parentId) {
     color: parentId === rootId ? "#d1d5db" : "#ffffff"
   });
   state.selectedNodeId = node.id;
+  state.focusEditorNodeId = node.id;
   commitOperation({ type: "node/upsert", noteId: state.selectedNoteId, node });
   syncPresence();
 }
@@ -545,6 +546,7 @@ function createImageNode(parentId, image) {
     image
   });
   state.selectedNodeId = node.id;
+  state.focusEditorNodeId = node.id;
   commitOperation({ type: "node/upsert", noteId: state.selectedNoteId, node });
   syncPresence();
 }
@@ -570,6 +572,7 @@ function createSiblingNode(nodeId) {
     color: current.color
   });
   state.selectedNodeId = newId;
+  state.focusEditorNodeId = newId;
   const nextWorkspace = applyWorkspaceOperationLocally(
     applyWorkspaceOperationLocally(state.workspace, { type: "node/upsert", noteId: state.selectedNoteId, node }),
     { type: "nodes/reorder", noteId: state.selectedNoteId, parentId: current.parentId, orderedIds: siblingIds }
@@ -730,7 +733,6 @@ function renderMainShell(note, folder) {
         </div>
       </header>
       <section class="canvas-frame">
-        <input type="file" accept="image/*" id="attach-photo-input" hidden />
         <div class="canvas" id="canvas">
           <svg class="connections" id="connections"></svg>
           <div class="canvas-viewport" id="canvas-viewport"></div>
@@ -879,19 +881,16 @@ function renderCanvas() {
     card.innerHTML = `
       <div class="node-row">
         <div class="node-presence">${viewers.map((member) => `<span class="node-user-dot" style="background:${member.color}"></span>`).join("")}</div>
-        <button class="node-collapse">${getChildren(documentModel, node.id).length ? (node.collapsed ? "+" : "-") : "."}</button>
       </div>
       <div class="node-actions">
         <button class="node-action-button node-add-button" title="Add branch">+</button>
-        <button class="node-action-button node-photo-button" title="Add photo">P</button>
-        <button class="node-action-button node-delete-button" title="Delete node" ${node.id === rootId ? "disabled" : ""}>x</button>
       </div>
       <textarea class="node-editor" rows="${node.id === rootId ? 1 : Math.max(1, Math.min(6, node.text.length / 18 + 1))}">${escapeHtml(node.text)}</textarea>
       ${node.image ? `<img class="node-image" src="${node.image}" alt="${escapeHtml(node.text)}" />` : ""}
     `;
 
     card.onpointerdown = (event) => {
-      if (event.target.closest(".node-editor")) {
+      if (event.target.closest(".node-editor") || event.target.closest(".node-action-button")) {
         return;
       }
       event.stopPropagation();
@@ -939,7 +938,6 @@ function renderCanvas() {
     editor.onfocus = () => {
       state.selectedNodeId = node.id;
       syncPresence();
-      render();
     };
     editor.oninput = (event) => {
       const text = event.target.value;
@@ -983,32 +981,17 @@ function renderCanvas() {
       }
     };
 
-    card.querySelector(".node-collapse").onclick = (event) => {
+    const addButton = card.querySelector(".node-add-button");
+    addButton.onpointerdown = (event) => {
       event.stopPropagation();
-      toggleCollapse(node.id);
+      event.preventDefault();
+      state.selectedNodeId = node.id;
     };
-
-    card.querySelector(".node-add-button").onclick = (event) => {
+    addButton.onclick = (event) => {
       event.stopPropagation();
       state.selectedNodeId = node.id;
       syncPresence();
       createChildNode(node.id);
-    };
-
-    card.querySelector(".node-photo-button").onclick = (event) => {
-      event.stopPropagation();
-      state.selectedNodeId = node.id;
-      syncPresence();
-      photoInput.click();
-    };
-
-    card.querySelector(".node-delete-button").onclick = (event) => {
-      event.stopPropagation();
-      state.selectedNodeId = node.id;
-      syncPresence();
-      if (node.id !== rootId) {
-        deleteSelectedNode();
-      }
     };
 
     if (state.focusEditorNodeId === node.id) {
@@ -1026,17 +1009,6 @@ function renderCanvas() {
     const title = event.target.value;
     commitOperation({ type: "note/update", noteId: state.selectedNoteId, changes: { title } });
     commitOperation({ type: "node/update", noteId: state.selectedNoteId, nodeId: rootId, changes: { text: title } });
-  };
-
-  const photoInput = document.getElementById("attach-photo-input");
-  photoInput.onchange = async (event) => {
-    const file = event.target.files?.[0];
-    if (!file) {
-      return;
-    }
-    const dataUrl = await fileToDataUrl(file);
-    createImageNode(state.selectedNodeId, dataUrl);
-    event.target.value = "";
   };
 
   canvasEl.onpointerdown = (event) => {

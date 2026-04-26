@@ -379,9 +379,10 @@ button {
 .node-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 8px;
   margin-bottom: 6px;
+  min-height: 10px;
 }
 
 .node-actions {
@@ -421,26 +422,6 @@ button {
 .node-add-button {
   font-size: 1rem;
   font-weight: 700;
-}
-
-.node-photo-button,
-.node-delete-button {
-  background: white;
-  color: #111827;
-  border: 1px solid #d6d3d1;
-}
-
-.node-collapse {
-  width: 24px;
-  height: 24px;
-  padding: 0;
-  border-radius: 999px;
-  background: rgba(17, 24, 39, 0.08);
-  color: inherit;
-}
-
-.root-node .node-collapse {
-  background: rgba(255, 255, 255, 0.14);
 }
 
 .node-editor {
