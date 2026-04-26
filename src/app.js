@@ -101,6 +101,37 @@ function cursorForResizeDirection(direction) {
   }
 }
 
+function autoGrowNodeCard(card, editor, node, persist = false) {
+  const { height: currentHeight } = getNodeSize(node);
+  const textAreaPadding = 24;
+  const headerHeight = 18;
+  const imageHeight = node.image ? Math.max(120, currentHeight - 44) : 0;
+
+  editor.style.height = "0px";
+  const nextEditorHeight = Math.max(28, editor.scrollHeight);
+  editor.style.height = `${nextEditorHeight}px`;
+
+  const nextHeight = Math.max(
+    currentHeight,
+    headerHeight + textAreaPadding + nextEditorHeight + (node.image ? imageHeight + 10 : 0)
+  );
+
+  card.style.minHeight = `${nextHeight}px`;
+
+  if (persist && nextHeight !== currentHeight) {
+    commitOperation(
+      {
+        type: "node/update",
+        noteId: state.selectedNoteId,
+        nodeId: node.id,
+        changes: { height: nextHeight }
+      },
+      { render: false }
+    );
+    node.height = nextHeight;
+  }
+}
+
 function currentNote() {
   return state.workspace?.notes?.[state.selectedNoteId] ?? null;
 }
@@ -1032,6 +1063,7 @@ function renderCanvas() {
     };
     editor.oninput = (event) => {
       const text = event.target.value;
+      autoGrowNodeCard(card, editor, node, true);
       if (node.id === rootId) {
         commitOperation({
           type: "note/update",
@@ -1089,9 +1121,14 @@ function renderCanvas() {
       requestAnimationFrame(() => {
         editor.focus();
         editor.select();
+        autoGrowNodeCard(card, editor, node, false);
       });
       state.focusEditorNodeId = null;
     }
+
+    requestAnimationFrame(() => {
+      autoGrowNodeCard(card, editor, node, false);
+    });
 
     viewportEl.appendChild(card);
   });
@@ -1195,12 +1232,19 @@ function renderCanvas() {
   };
 
   canvasEl.onwheel = (event) => {
-    if (event.ctrlKey || event.metaKey || true) {
+    if (event.ctrlKey || event.metaKey) {
       event.preventDefault();
       const delta = event.deltaY > 0 ? -0.07 : 0.07;
       state.viewport.scale = Math.max(0.4, Math.min(2, state.viewport.scale + delta));
       render();
+      return;
     }
+
+    event.preventDefault();
+    const panFactor = 0.42;
+    state.viewport.x += event.deltaX * panFactor;
+    state.viewport.y += event.deltaY * panFactor;
+    render();
   };
 }
 

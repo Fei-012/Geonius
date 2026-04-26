@@ -377,7 +377,12 @@ button {
 .map-node:hover,
 .map-node.selected {
   border-color: #111111;
-  box-shadow: 0 0 0 1px rgba(17, 24, 39, 0.02);
+  box-shadow: 0 0 0 2px rgba(17, 24, 39, 0.18);
+}
+
+.map-node.selected {
+  border-width: 2px;
+  box-shadow: 0 0 0 2px rgba(17, 24, 39, 0.28);
 }
 
 .root-node {
