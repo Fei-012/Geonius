@@ -80,6 +80,16 @@ function arrangeDocument(document, focusNodeId = "root") {
   const rootSpacingX = 340;
   const childSpacingX = 250;
   const siblingGapY = 72;
+  const collisionPaddingX = 40;
+  const collisionPaddingY = 36;
+
+  function nodeBoxWidth(nodeId) {
+    const node = nodes[nodeId];
+    if (!node) {
+      return 220;
+    }
+    return Math.max(120, node.width ?? 220);
+  }
 
   function nodeBoxHeight(nodeId) {
     const node = nodes[nodeId];
@@ -105,6 +115,96 @@ function arrangeDocument(document, focusNodeId = "root") {
     }, 0);
 
     return Math.max(nodeBoxHeight(nodeId), childrenHeight);
+  }
+
+  function isVisible(nodeId) {
+    let current = nodes[nodeId];
+    while (current && current.parentId) {
+      const parent = nodes[current.parentId];
+      if (!parent || parent.collapsed) {
+        return false;
+      }
+      current = parent;
+    }
+    return true;
+  }
+
+  function isAncestor(ancestorId, nodeId) {
+    let current = nodes[nodeId];
+    while (current && current.parentId) {
+      if (current.parentId === ancestorId) {
+        return true;
+      }
+      current = nodes[current.parentId];
+    }
+    return false;
+  }
+
+  function collectSubtreeIds(nodeId) {
+    const ids = [nodeId];
+    const stack = [nodeId];
+    while (stack.length > 0) {
+      const current = stack.pop();
+      const children = getChildren({ ...document, nodes }, current);
+      for (const child of children) {
+        ids.push(child.id);
+        stack.push(child.id);
+      }
+    }
+    return ids;
+  }
+
+  function shiftSubtree(nodeId, shiftX, shiftY) {
+    if (nodeId === "root") {
+      return;
+    }
+    const ids = collectSubtreeIds(nodeId);
+    ids.forEach((id) => {
+      nodes[id] = {
+        ...nodes[id],
+        x: nodes[id].x + shiftX,
+        y: nodes[id].y + shiftY
+      };
+    });
+  }
+
+  function resolveCollisions() {
+    const visibleRoots = Object.values(nodes)
+      .filter((node) => node.id !== "root" && isVisible(node.id))
+      .sort((a, b) => a.x - b.x || a.y - b.y);
+
+    for (let iteration = 0; iteration < 8; iteration += 1) {
+      let changed = false;
+
+      for (let i = 0; i < visibleRoots.length; i += 1) {
+        for (let j = i + 1; j < visibleRoots.length; j += 1) {
+          const a = nodes[visibleRoots[i].id];
+          const b = nodes[visibleRoots[j].id];
+          if (!a || !b) {
+            continue;
+          }
+          if (isAncestor(a.id, b.id) || isAncestor(b.id, a.id)) {
+            continue;
+          }
+
+          const overlapX = nodeBoxWidth(a.id) / 2 + nodeBoxWidth(b.id) / 2 + collisionPaddingX - Math.abs(b.x - a.x);
+          const overlapY = nodeBoxHeight(a.id) / 2 + nodeBoxHeight(b.id) / 2 + collisionPaddingY - Math.abs(b.y - a.y);
+
+          if (overlapX > 0 && overlapY > 0) {
+            const shiftX = overlapX / 2;
+            const shiftY = overlapY / 2;
+
+            shiftSubtree(a.id, -shiftX * 0.65, b.y >= a.y ? -shiftY * 0.45 : shiftY * 0.45);
+            shiftSubtree(b.id, shiftX, b.y >= a.y ? shiftY : -shiftY);
+            changed = true;
+          }
+        }
+      }
+
+      if (!changed) {
+        break;
+      }
+    }
   }
 
   function placeChildren(parentId, startY) {
@@ -136,6 +236,7 @@ function arrangeDocument(document, focusNodeId = "root") {
   }
 
   placeChildren("root", 0);
+  resolveCollisions();
 
   if (focusNodeId !== "root" && nodes[focusNodeId] && document.nodes[focusNodeId]) {
     const drift = document.nodes[focusNodeId].y - nodes[focusNodeId].y;
