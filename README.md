@@ -40,3 +40,26 @@ If other people are on the same local network, they can use your LAN address sho
 - Mind map mode is implemented
 - Note-mode conversion is intentionally left for later
 - For true worldwide sharing, you still need deployment or a tunnel; local and LAN sharing work from this server
+
+## Stable public deployment
+
+For stable live collaboration with friends from anywhere, deploy this app as a single public Node web service with persistent storage.
+
+The repo now includes [render.yaml](/Users/xiangtiange/Desktop/Geonius/render.yaml:1) for Render deployment.
+
+### Why this is the right shape
+
+- This app is a live Node server, not a static website
+- It stores shared workspace data on disk
+- It should run as one persistent instance so all collaborators see the same shared state
+
+### Deploy on Render
+
+1. Push this repo to GitHub.
+2. In Render, create a new Blueprint and point it at this repo.
+3. Render will read `render.yaml` automatically.
+4. After deploy, open the generated `https://...onrender.com` URL and share that link with your friend.
+
+### Important note
+
+This deployment shape is good for a small shared group and stable co-editing, but it is still a single-server app using a JSON file as storage. If you later want stronger Google-Docs-style reliability, multi-instance scaling, and better conflict handling, the next upgrade is moving shared state into a real datastore and CRDT layer.

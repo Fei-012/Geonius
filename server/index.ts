@@ -15,7 +15,9 @@ const io = new Server(httpServer, {
 });
 
 const PORT = Number(process.env.PORT || 3001);
-const DATA_DIR = path.resolve(process.cwd(), "server/data");
+const DATA_DIR = process.env.GEONIUS_DATA_DIR
+  ? path.resolve(process.env.GEONIUS_DATA_DIR)
+  : path.resolve(process.cwd(), "server/data");
 const DATA_FILE = path.join(DATA_DIR, "document.json");
 
 type ServerState = {

@@ -7,7 +7,9 @@ import { fileURLToPath } from "node:url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, "..");
-const dataDir = path.join(__dirname, "data");
+const dataDir = process.env.GEONIUS_DATA_DIR
+  ? path.resolve(process.env.GEONIUS_DATA_DIR)
+  : path.join(__dirname, "data");
 const workspaceFile = path.join(dataDir, "workspace.json");
 const legacyDocumentFile = path.join(dataDir, "document.json");
 const port = Number(process.env.PORT || 3001);

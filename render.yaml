@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: geonius-live-mindmap
+    runtime: node
+    plan: starter
+    region: frankfurt
+    buildCommand: "true"
+    startCommand: node server/index.js
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+      - key: GEONIUS_DATA_DIR
+        value: /var/data
+    disk:
+      name: geonius-data
+      mountPath: /var/data
+      sizeGB: 1
