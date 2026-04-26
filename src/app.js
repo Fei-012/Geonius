@@ -850,6 +850,7 @@ function renderCanvas() {
 
   viewportEl.innerHTML = "";
   viewportEl.style.transform = `translate(${state.viewport.x}px, ${state.viewport.y}px) scale(${state.viewport.scale})`;
+  connectionsEl.setAttribute("viewBox", `0 0 ${canvasEl.clientWidth || 1600} ${canvasEl.clientHeight || 900}`);
 
   connectionsEl.innerHTML = `<g transform="translate(${state.viewport.x} ${state.viewport.y}) scale(${state.viewport.scale})"></g>`;
   const group = connectionsEl.querySelector("g");
@@ -863,8 +864,11 @@ function renderCanvas() {
       }
       const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
       path.setAttribute("d", `M ${parent.x} ${parent.y} C ${parent.x + 110} ${parent.y}, ${node.x - 110} ${node.y}, ${node.x} ${node.y}`);
-      path.setAttribute("stroke", "#9ca3af");
-      path.setAttribute("stroke-width", String(2.6 / state.viewport.scale));
+      path.setAttribute("stroke", "#6b7280");
+      path.setAttribute("stroke-width", String(3.2 / state.viewport.scale));
+      path.setAttribute("stroke-linecap", "round");
+      path.setAttribute("stroke-linejoin", "round");
+      path.setAttribute("opacity", "0.95");
       path.setAttribute("fill", "none");
       group.appendChild(path);
     });

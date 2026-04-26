@@ -337,6 +337,9 @@ button {
   height: calc(100vh - 70px);
   overflow: hidden;
   cursor: grab;
+  background:
+    radial-gradient(circle at 1px 1px, rgba(17, 24, 39, 0.08) 1px, transparent 0);
+  background-size: 28px 28px;
 }
 
 .canvas:active {
@@ -349,8 +352,17 @@ button {
   inset: 0;
 }
 
+.connections {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+  z-index: 0;
+}
+
 .canvas-viewport {
   transform-origin: 0 0;
+  z-index: 1;
 }
 
 .map-node {
