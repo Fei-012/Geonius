@@ -79,20 +79,32 @@ function arrangeDocument(document, focusNodeId = "root") {
 
   const rootSpacingX = 340;
   const childSpacingX = 250;
-  const siblingSpacingY = 124;
+  const siblingGapY = 28;
+
+  function nodeBoxHeight(nodeId) {
+    const node = nodes[nodeId];
+    if (!node) {
+      return 72;
+    }
+    return Math.max(56, node.height ?? (node.image ? 220 : 72));
+  }
 
   function subtreeHeight(nodeId) {
     const node = nodes[nodeId];
     if (!node || node.collapsed) {
-      return 1;
+      return nodeBoxHeight(nodeId);
     }
 
     const children = getChildren({ ...document, nodes }, nodeId);
     if (children.length === 0) {
-      return 1;
+      return nodeBoxHeight(nodeId);
     }
 
-    return Math.max(1, children.reduce((sum, child) => sum + subtreeHeight(child.id), 0));
+    const childrenHeight = children.reduce((sum, child, index) => {
+      return sum + subtreeHeight(child.id) + (index > 0 ? siblingGapY : 0);
+    }, 0);
+
+    return Math.max(nodeBoxHeight(nodeId), childrenHeight);
   }
 
   function placeChildren(parentId, startY) {
@@ -102,12 +114,14 @@ function arrangeDocument(document, focusNodeId = "root") {
       return;
     }
 
-    const totalUnits = children.reduce((sum, child) => sum + subtreeHeight(child.id), 0);
-    let cursor = startY - ((totalUnits - 1) * siblingSpacingY) / 2;
+    const totalHeight = children.reduce((sum, child, index) => {
+      return sum + subtreeHeight(child.id) + (index > 0 ? siblingGapY : 0);
+    }, 0);
+    let cursor = startY - totalHeight / 2;
 
     for (const child of children) {
       const units = subtreeHeight(child.id);
-      const branchCenterY = cursor + ((units - 1) * siblingSpacingY) / 2;
+      const branchCenterY = cursor + units / 2;
       const xShift = parentId === "root" ? rootSpacingX : childSpacingX;
 
       nodes[child.id] = {
@@ -117,7 +131,7 @@ function arrangeDocument(document, focusNodeId = "root") {
       };
 
       placeChildren(child.id, branchCenterY);
-      cursor += units * siblingSpacingY;
+      cursor += units + siblingGapY;
     }
   }
 

@@ -215,20 +215,32 @@ function applyWorkspaceOperationLocally(workspace, operation) {
     nodes[rootId] = { ...nodes[rootId], x: 0, y: 0 };
     const rootSpacingX = 340;
     const childSpacingX = 250;
-    const siblingSpacingY = 124;
+    const siblingGapY = 28;
+
+    function nodeBoxHeight(nodeId) {
+      const node = nodes[nodeId];
+      if (!node) {
+        return 72;
+      }
+      return Math.max(56, node.height ?? (node.image ? 220 : 72));
+    }
 
     function branchHeight(nodeId) {
       const node = nodes[nodeId];
       if (!node || node.collapsed) {
-        return 1;
+        return nodeBoxHeight(nodeId);
       }
 
       const children = getChildrenLocal({ ...document, nodes }, nodeId);
       if (children.length === 0) {
-        return 1;
+        return nodeBoxHeight(nodeId);
       }
 
-      return Math.max(1, children.reduce((sum, child) => sum + branchHeight(child.id), 0));
+      const childrenHeight = children.reduce((sum, child, index) => {
+        return sum + branchHeight(child.id) + (index > 0 ? siblingGapY : 0);
+      }, 0);
+
+      return Math.max(nodeBoxHeight(nodeId), childrenHeight);
     }
 
     function placeChildren(parentId, startY) {
@@ -238,19 +250,21 @@ function applyWorkspaceOperationLocally(workspace, operation) {
         return;
       }
 
-      const totalUnits = children.reduce((sum, child) => sum + branchHeight(child.id), 0);
-      let cursor = startY - ((totalUnits - 1) * siblingSpacingY) / 2;
+      const totalHeight = children.reduce((sum, child, index) => {
+        return sum + branchHeight(child.id) + (index > 0 ? siblingGapY : 0);
+      }, 0);
+      let cursor = startY - totalHeight / 2;
 
       children.forEach((child) => {
         const units = branchHeight(child.id);
-        const centerY = cursor + ((units - 1) * siblingSpacingY) / 2;
+        const centerY = cursor + units / 2;
         nodes[child.id] = {
           ...nodes[child.id],
           x: parent.x + (parentId === rootId ? rootSpacingX : childSpacingX),
           y: centerY
         };
         placeChildren(child.id, centerY);
-        cursor += units * siblingSpacingY;
+        cursor += units + siblingGapY;
       });
     }
 
@@ -1103,6 +1117,13 @@ function renderCanvas() {
         moveSibling(node.id, 1);
       }
     };
+    editor.onblur = () => {
+      commitOperation({
+        type: "nodes/arrange",
+        noteId: state.selectedNoteId,
+        focusNodeId: rootId
+      });
+    };
 
     const addButton = card.querySelector(".node-add-button");
     addButton.onpointerdown = (event) => {
@@ -1144,6 +1165,11 @@ function renderCanvas() {
       state.selectedNodeId = rootId;
       syncPresence();
       panState = { x: event.clientX, y: event.clientY };
+      commitOperation({
+        type: "nodes/arrange",
+        noteId: state.selectedNoteId,
+        focusNodeId: rootId
+      });
       render();
     }
   };
