@@ -422,6 +422,25 @@ function applyWorkspaceOperation(workspace, operation) {
         version: workspace.version + 1,
         updatedAt: now()
       };
+    case "folder/delete": {
+      const folder = workspace.folders.find((item) => item.id === operation.folderId);
+      if (!folder) {
+        return workspace;
+      }
+
+      const nextNotes = { ...workspace.notes };
+      folder.noteIds.forEach((noteId) => {
+        delete nextNotes[noteId];
+      });
+
+      return {
+        ...workspace,
+        folders: workspace.folders.filter((item) => item.id !== operation.folderId),
+        notes: nextNotes,
+        version: workspace.version + 1,
+        updatedAt: now()
+      };
+    }
     case "note/create": {
       const folder = workspace.folders.find((item) => item.id === operation.folderId);
       if (!folder) {
@@ -449,6 +468,31 @@ function applyWorkspaceOperation(workspace, operation) {
           ...workspace.notes,
           [noteId]: note
         },
+        version: workspace.version + 1,
+        updatedAt: now()
+      };
+    }
+    case "note/delete": {
+      const note = workspace.notes[operation.noteId];
+      if (!note) {
+        return workspace;
+      }
+
+      const nextNotes = { ...workspace.notes };
+      delete nextNotes[operation.noteId];
+
+      return {
+        ...workspace,
+        folders: workspace.folders.map((folder) =>
+          folder.id === note.folderId
+            ? {
+                ...folder,
+                noteIds: folder.noteIds.filter((id) => id !== operation.noteId),
+                updatedAt: now()
+              }
+            : folder
+        ),
+        notes: nextNotes,
         version: workspace.version + 1,
         updatedAt: now()
       };

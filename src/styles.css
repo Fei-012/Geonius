@@ -165,16 +165,36 @@ button {
 
 .folder-header {
   display: grid;
-  grid-template-columns: 32px 1fr 32px;
+  grid-template-columns: 32px 1fr auto;
 }
 
 .folder-toggle,
-.folder-add-note {
+.folder-add-note,
+.folder-delete-button {
   padding: 0;
   width: 32px;
   height: 32px;
   background: #efede9;
   color: #44403c;
+}
+
+.folder-tools {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.folder-delete-button,
+.note-delete-button {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+}
+
+.folder-card:hover .folder-delete-button,
+.note-item-row:hover .note-delete-button {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .folder-name-input {
@@ -191,6 +211,13 @@ button {
   margin-top: 8px;
 }
 
+.note-item-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px;
+  align-items: center;
+}
+
 .note-item {
   display: flex;
   align-items: center;
@@ -202,6 +229,14 @@ button {
   padding: 10px 12px;
   background: #ffffff;
   color: #44403c;
+}
+
+.note-delete-button {
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  background: #efede9;
+  color: #57534e;
 }
 
 .note-item-title {

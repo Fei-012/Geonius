@@ -6,6 +6,7 @@ const state = {
   presence: [],
   selectedNoteId: null,
   selectedNodeId: rootId,
+  focusEditorNodeId: null,
   sidebarCollapsed: false,
   expandedFolders: {},
   search: "",
@@ -23,6 +24,7 @@ localStorage.setItem("geonius-user-color", state.user.color);
 
 let dragState = null;
 let panState = null;
+let suppressNodeClickUntil = 0;
 
 function randomName() {
   const animals = ["Fox", "Whale", "Otter", "Panda", "Falcon", "Lynx", "Robin"];
@@ -324,6 +326,25 @@ function applyWorkspaceOperationLocally(workspace, operation) {
         version: workspace.version + 1,
         updatedAt: stamp
       };
+    case "folder/delete": {
+      const folder = workspace.folders.find((item) => item.id === operation.folderId);
+      if (!folder) {
+        return workspace;
+      }
+
+      const nextNotes = { ...workspace.notes };
+      folder.noteIds.forEach((noteId) => {
+        delete nextNotes[noteId];
+      });
+
+      return {
+        ...workspace,
+        folders: workspace.folders.filter((item) => item.id !== operation.folderId),
+        notes: nextNotes,
+        version: workspace.version + 1,
+        updatedAt: stamp
+      };
+    }
     case "note/create": {
       const noteId = operation.noteId || uid("note");
       const title = operation.title || "Untitled note";
@@ -351,6 +372,27 @@ function applyWorkspaceOperationLocally(workspace, operation) {
           ...workspace.notes,
           [noteId]: note
         },
+        version: workspace.version + 1,
+        updatedAt: stamp
+      };
+    }
+    case "note/delete": {
+      const note = workspace.notes[operation.noteId];
+      if (!note) {
+        return workspace;
+      }
+
+      const nextNotes = { ...workspace.notes };
+      delete nextNotes[operation.noteId];
+
+      return {
+        ...workspace,
+        folders: workspace.folders.map((folder) =>
+          folder.id === note.folderId
+            ? { ...folder, noteIds: folder.noteIds.filter((id) => id !== operation.noteId), updatedAt: stamp }
+            : folder
+        ),
+        notes: nextNotes,
         version: workspace.version + 1,
         updatedAt: stamp
       };
@@ -395,8 +437,24 @@ async function postJson(url, payload) {
   });
 }
 
+function ensureValidSelection() {
+  if (!state.workspace) {
+    return;
+  }
+
+  if (!state.workspace.notes[state.selectedNoteId]) {
+    const fallbackNoteId =
+      state.workspace.folders.find((folder) => folder.noteIds.length > 0)?.noteIds?.[0] ??
+      Object.keys(state.workspace.notes)[0] ??
+      null;
+    state.selectedNoteId = fallbackNoteId;
+    state.selectedNodeId = rootId;
+  }
+}
+
 function commitOperation(operation) {
   state.workspace = applyWorkspaceOperationLocally(state.workspace, operation);
+  ensureValidSelection();
   render();
   postJson("/operation", { clientId: state.clientId, operation }).catch(console.error);
 }
@@ -430,6 +488,10 @@ function createFolder() {
   commitOperation({ type: "folder/create", name });
 }
 
+function deleteFolder(folderId) {
+  commitOperation({ type: "folder/delete", folderId });
+}
+
 function createNote(folderId) {
   const title = window.prompt("Note name", "Untitled note");
   if (!title) {
@@ -441,6 +503,10 @@ function createNote(folderId) {
   state.selectedNodeId = rootId;
   syncPresence();
   render();
+}
+
+function deleteNote(noteId) {
+  commitOperation({ type: "note/delete", noteId });
 }
 
 function createChildNode(parentId) {
@@ -693,7 +759,10 @@ function renderFolderTree() {
     header.innerHTML = `
       <button class="folder-toggle">${expanded ? "v" : ">"}</button>
       <input class="folder-name-input" value="${escapeHtml(folder.name)}" />
-      <button class="folder-add-note">+</button>
+      <div class="folder-tools">
+        <button class="folder-add-note">+</button>
+        <button class="folder-delete-button" title="Delete folder">x</button>
+      </div>
     `;
 
     header.querySelector(".folder-toggle").onclick = () => {
@@ -702,6 +771,7 @@ function renderFolderTree() {
     };
 
     header.querySelector(".folder-add-note").onclick = () => createNote(folder.id);
+    header.querySelector(".folder-delete-button").onclick = () => deleteFolder(folder.id);
 
     header.querySelector(".folder-name-input").onchange = (event) => {
       commitOperation({
@@ -720,14 +790,18 @@ function renderFolderTree() {
       noteIds.forEach((noteId) => {
         const note = state.workspace.notes[noteId];
         const noteUsers = state.presence.filter((member) => member.selectedNoteId === noteId);
-        const item = document.createElement("button");
-        item.className = `note-item ${state.selectedNoteId === noteId ? "active" : ""}`;
-        item.innerHTML = `
-          <span class="note-item-title">${escapeHtml(note.title)}</span>
-          <span class="note-user-count">${noteUsers.length > 0 ? noteUsers.length : ""}</span>
+        const row = document.createElement("div");
+        row.className = "note-item-row";
+        row.innerHTML = `
+          <button class="note-item ${state.selectedNoteId === noteId ? "active" : ""}">
+            <span class="note-item-title">${escapeHtml(note.title)}</span>
+            <span class="note-user-count">${noteUsers.length > 0 ? noteUsers.length : ""}</span>
+          </button>
+          <button class="note-delete-button" title="Delete note">x</button>
         `;
-        item.onclick = () => setSelectedNote(noteId);
-        notesEl.appendChild(item);
+        row.querySelector(".note-item").onclick = () => setSelectedNote(noteId);
+        row.querySelector(".note-delete-button").onclick = () => deleteNote(noteId);
+        notesEl.appendChild(row);
       });
 
       folderEl.appendChild(notesEl);
@@ -817,6 +891,9 @@ function renderCanvas() {
     `;
 
     card.onpointerdown = (event) => {
+      if (event.target.closest(".node-editor")) {
+        return;
+      }
       event.stopPropagation();
       state.selectedNodeId = node.id;
       syncPresence();
@@ -824,14 +901,41 @@ function renderCanvas() {
       dragState = {
         nodeId: node.id,
         offsetX: point.x - node.x,
-        offsetY: point.y - node.y
+        offsetY: point.y - node.y,
+        startX: event.clientX,
+        startY: event.clientY,
+        moved: false
       };
       render();
     };
 
-    card.ondblclick = () => createChildNode(node.id);
+    card.onclick = (event) => {
+      if (Date.now() < suppressNodeClickUntil) {
+        return;
+      }
+      event.stopPropagation();
+      if (state.selectedNodeId === node.id) {
+        state.focusEditorNodeId = node.id;
+        render();
+      } else {
+        state.selectedNodeId = node.id;
+        syncPresence();
+        render();
+      }
+    };
+
+    card.ondblclick = (event) => {
+      event.stopPropagation();
+      state.selectedNodeId = node.id;
+      state.focusEditorNodeId = node.id;
+      syncPresence();
+      render();
+    };
 
     const editor = card.querySelector(".node-editor");
+    editor.onpointerdown = (event) => {
+      event.stopPropagation();
+    };
     editor.onfocus = () => {
       state.selectedNodeId = node.id;
       syncPresence();
@@ -907,6 +1011,14 @@ function renderCanvas() {
       }
     };
 
+    if (state.focusEditorNodeId === node.id) {
+      requestAnimationFrame(() => {
+        editor.focus();
+        editor.select();
+      });
+      state.focusEditorNodeId = null;
+    }
+
     viewportEl.appendChild(card);
   });
 
@@ -938,6 +1050,12 @@ function renderCanvas() {
 
   canvasEl.onpointermove = (event) => {
     if (dragState) {
+      if (
+        !dragState.moved &&
+        (Math.abs(event.clientX - dragState.startX) > 4 || Math.abs(event.clientY - dragState.startY) > 4)
+      ) {
+        dragState.moved = true;
+      }
       const point = screenToCanvas(event.clientX, event.clientY);
       commitOperation({
         type: "node/update",
@@ -960,6 +1078,9 @@ function renderCanvas() {
   };
 
   canvasEl.onpointerup = () => {
+    if (dragState?.moved) {
+      suppressNodeClickUntil = Date.now() + 180;
+    }
     dragState = null;
     panState = null;
   };
@@ -1115,9 +1236,7 @@ async function start() {
     }
     if (payload.type === "operation") {
       state.workspace = applyWorkspaceOperationLocally(state.workspace, payload.operation);
-      if (!state.workspace.notes[state.selectedNoteId]) {
-        state.selectedNoteId = state.workspace.folders[0]?.noteIds?.[0] ?? Object.keys(state.workspace.notes)[0] ?? null;
-      }
+      ensureValidSelection();
       render();
     }
   };

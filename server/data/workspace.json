@@ -1,7 +1,7 @@
 {
   "id": "shared-workspace",
   "title": "Geonius",
-  "version": 686,
+  "version": 716,
   "folders": [
     {
       "id": "3e3dc572-e5bf-4aea-884c-3ee3e4043180",
@@ -15,9 +15,11 @@
     {
       "id": "4a9cb88d-9638-40c4-b701-2e3084f841e1",
       "name": "Unit 3",
-      "noteIds": [],
+      "noteIds": [
+        "84a82920-4e84-41c3-9044-c1b1a13ce509"
+      ],
       "createdAt": 1777222914889,
-      "updatedAt": 1777222914889
+      "updatedAt": 1777223419596
     }
   ],
   "notes": {
@@ -35,12 +37,12 @@
             "parentId": null,
             "text": "Geonius",
             "order": 0,
-            "x": -63.914408447786,
+            "x": -163.72675935427458,
             "y": 48.92816310975607,
             "color": "#0f766e",
             "collapsed": false,
             "createdAt": 1777221867834,
-            "updatedAt": 1777223224491
+            "updatedAt": 1777223388592
           },
           "30ce9c96-f863-4afb-b755-d2ad7290f136": {
             "id": "30ce9c96-f863-4afb-b755-d2ad7290f136",
@@ -72,35 +74,35 @@
             "text": "Images",
             "order": 2,
             "x": 287.4909538299544,
-            "y": -78.83195316961738,
+            "y": -78.61643592823808,
             "color": "#9333ea",
             "collapsed": false,
             "createdAt": 1777221867834,
-            "updatedAt": 1777223240126
+            "updatedAt": 1777223401776
           },
           "node-vf965rlo": {
             "id": "node-vf965rlo",
             "parentId": "root",
             "text": "H",
             "order": 3,
-            "x": 206.31859756097583,
+            "x": 206.18969131097583,
             "y": 84.0110412432249,
             "color": "#dc2626",
             "collapsed": true,
             "createdAt": 1777222324497,
-            "updatedAt": 1777223253340
+            "updatedAt": 1777223394377
           },
           "node-vmf33ud1": {
             "id": "node-vmf33ud1",
             "parentId": "root",
             "text": "New sibling",
             "order": 4,
-            "x": 320,
-            "y": 198,
+            "x": 319.7421875,
+            "y": 198.2421875,
             "color": "#dc2626",
             "collapsed": false,
             "createdAt": 1777222333595,
-            "updatedAt": 1777222334211
+            "updatedAt": 1777223397925
           },
           "node-x4z0m8ak": {
             "id": "node-x4z0m8ak",
@@ -108,18 +110,92 @@
             "text": "New sibling",
             "order": 5,
             "x": 320,
-            "y": 330,
+            "y": 330.3671875,
             "color": "#dc2626",
             "collapsed": true,
             "createdAt": 1777222334211,
-            "updatedAt": 1777222337352
+            "updatedAt": 1777223400080
           }
         },
-        "updatedAt": 1777223253340
+        "updatedAt": 1777223401776
       },
       "createdAt": 1777222721462,
-      "updatedAt": 1777223253340
+      "updatedAt": 1777223401776
+    },
+    "84a82920-4e84-41c3-9044-c1b1a13ce509": {
+      "id": "84a82920-4e84-41c3-9044-c1b1a13ce509",
+      "folderId": "4a9cb88d-9638-40c4-b701-2e3084f841e1",
+      "title": "3.3 resource stewardship",
+      "document": {
+        "id": "2829ee27-3bcf-461b-b608-be7d08a3c793",
+        "title": "3.3 resource stewardship",
+        "nodes": {
+          "root": {
+            "id": "root",
+            "parentId": null,
+            "text": "3.3 resource stewardship",
+            "order": 0,
+            "x": 0,
+            "y": 0,
+            "color": "#111111",
+            "collapsed": false,
+            "createdAt": 1777223419595,
+            "updatedAt": 1777223419595
+          },
+          "14d6f8e2-0b7b-45f2-ae91-e8de7b89c457": {
+            "id": "14d6f8e2-0b7b-45f2-ae91-e8de7b89c457",
+            "parentId": "root",
+            "text": "Stewardship",
+            "order": 0,
+            "x": 340,
+            "y": -124,
+            "color": "#d1d5db",
+            "collapsed": false,
+            "createdAt": 1777223419595,
+            "updatedAt": 1777223419595
+          },
+          "155de7e0-b266-4c04-860d-af0020d2f3bd": {
+            "id": "155de7e0-b266-4c04-860d-af0020d2f3bd",
+            "parentId": "root",
+            "text": "Resource possibilities",
+            "order": 1,
+            "x": 340,
+            "y": 62,
+            "color": "#d1d5db",
+            "collapsed": false,
+            "createdAt": 1777223419595,
+            "updatedAt": 1777223419595
+          },
+          "cfc66d4c-9241-4a9d-b404-3208241da886": {
+            "id": "cfc66d4c-9241-4a9d-b404-3208241da886",
+            "parentId": "155de7e0-b266-4c04-860d-af0020d2f3bd",
+            "text": "Optimistic view",
+            "order": 0,
+            "x": 590,
+            "y": 0,
+            "color": "#ffffff",
+            "collapsed": false,
+            "createdAt": 1777223419595,
+            "updatedAt": 1777223419595
+          },
+          "9fe1e9a1-5675-447f-9d67-e94bc9ecf716": {
+            "id": "9fe1e9a1-5675-447f-9d67-e94bc9ecf716",
+            "parentId": "155de7e0-b266-4c04-860d-af0020d2f3bd",
+            "text": "Balanced view",
+            "order": 1,
+            "x": 590,
+            "y": 124,
+            "color": "#ffffff",
+            "collapsed": false,
+            "createdAt": 1777223419595,
+            "updatedAt": 1777223419595
+          }
+        },
+        "updatedAt": 1777223419596
+      },
+      "createdAt": 1777223419596,
+      "updatedAt": 1777223419596
     }
   },
-  "updatedAt": 1777223253340
+  "updatedAt": 1777223419596
 }
