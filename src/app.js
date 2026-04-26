@@ -463,6 +463,26 @@ function createChildNode(parentId) {
   syncPresence();
 }
 
+function createImageNode(parentId, image) {
+  const document = currentDocument();
+  if (!document) {
+    return;
+  }
+
+  const siblings = getChildren(document, parentId);
+  const node = createNode({
+    id: uid("node"),
+    parentId,
+    text: "Image",
+    order: siblings.length,
+    color: parentId === rootId ? "#d1d5db" : "#ffffff",
+    image
+  });
+  state.selectedNodeId = node.id;
+  commitOperation({ type: "node/upsert", noteId: state.selectedNoteId, node });
+  syncPresence();
+}
+
 function createSiblingNode(nodeId) {
   const document = currentDocument();
   if (!document) {
@@ -644,15 +664,6 @@ function renderMainShell(note, folder) {
         </div>
       </header>
       <section class="canvas-frame">
-        <div class="floating-tools">
-          <button class="tool-button" id="add-child-button">+ Child</button>
-          <button class="tool-button" id="add-sibling-button">+ Sibling</button>
-          <button class="tool-button" id="attach-photo-button">Photo</button>
-          <button class="tool-button" id="arrange-note-button">Arrange</button>
-          <button class="tool-button danger-lite" id="delete-node-button">Delete</button>
-          <button class="tool-button" id="zoom-in-button">+</button>
-          <button class="tool-button" id="zoom-out-button">-</button>
-        </div>
         <input type="file" accept="image/*" id="attach-photo-input" hidden />
         <div class="canvas" id="canvas">
           <svg class="connections" id="connections"></svg>
@@ -776,8 +787,8 @@ function renderCanvas() {
       }
       const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
       path.setAttribute("d", `M ${parent.x} ${parent.y} C ${parent.x + 110} ${parent.y}, ${node.x - 110} ${node.y}, ${node.x} ${node.y}`);
-      path.setAttribute("stroke", "#d1d5db");
-      path.setAttribute("stroke-width", String(2 / state.viewport.scale));
+      path.setAttribute("stroke", "#9ca3af");
+      path.setAttribute("stroke-width", String(2.6 / state.viewport.scale));
       path.setAttribute("fill", "none");
       group.appendChild(path);
     });
@@ -795,6 +806,11 @@ function renderCanvas() {
       <div class="node-row">
         <div class="node-presence">${viewers.map((member) => `<span class="node-user-dot" style="background:${member.color}"></span>`).join("")}</div>
         <button class="node-collapse">${getChildren(documentModel, node.id).length ? (node.collapsed ? "+" : "-") : "."}</button>
+      </div>
+      <div class="node-actions">
+        <button class="node-action-button node-add-button" title="Add branch">+</button>
+        <button class="node-action-button node-photo-button" title="Add photo">P</button>
+        <button class="node-action-button node-delete-button" title="Delete node" ${node.id === rootId ? "disabled" : ""}>x</button>
       </div>
       <textarea class="node-editor" rows="${node.id === rootId ? 1 : Math.max(1, Math.min(6, node.text.length / 18 + 1))}">${escapeHtml(node.text)}</textarea>
       ${node.image ? `<img class="node-image" src="${node.image}" alt="${escapeHtml(node.text)}" />` : ""}
@@ -868,6 +884,29 @@ function renderCanvas() {
       toggleCollapse(node.id);
     };
 
+    card.querySelector(".node-add-button").onclick = (event) => {
+      event.stopPropagation();
+      state.selectedNodeId = node.id;
+      syncPresence();
+      createChildNode(node.id);
+    };
+
+    card.querySelector(".node-photo-button").onclick = (event) => {
+      event.stopPropagation();
+      state.selectedNodeId = node.id;
+      syncPresence();
+      photoInput.click();
+    };
+
+    card.querySelector(".node-delete-button").onclick = (event) => {
+      event.stopPropagation();
+      state.selectedNodeId = node.id;
+      syncPresence();
+      if (node.id !== rootId) {
+        deleteSelectedNode();
+      }
+    };
+
     viewportEl.appendChild(card);
   });
 
@@ -877,33 +916,14 @@ function renderCanvas() {
     commitOperation({ type: "node/update", noteId: state.selectedNoteId, nodeId: rootId, changes: { text: title } });
   };
 
-  document.getElementById("add-child-button").onclick = () => createChildNode(currentSelectedNode.id);
-  document.getElementById("add-sibling-button").onclick = () => createSiblingNode(currentSelectedNode.id);
-  document.getElementById("delete-node-button").onclick = deleteSelectedNode;
-  document.getElementById("arrange-note-button").onclick = () => commitOperation({ type: "nodes/arrange", noteId: state.selectedNoteId, focusNodeId: state.selectedNodeId });
-  document.getElementById("zoom-in-button").onclick = () => {
-    state.viewport.scale = Math.min(2, state.viewport.scale + 0.1);
-    render();
-  };
-  document.getElementById("zoom-out-button").onclick = () => {
-    state.viewport.scale = Math.max(0.4, state.viewport.scale - 0.1);
-    render();
-  };
-
   const photoInput = document.getElementById("attach-photo-input");
-  document.getElementById("attach-photo-button").onclick = () => photoInput.click();
   photoInput.onchange = async (event) => {
     const file = event.target.files?.[0];
     if (!file) {
       return;
     }
     const dataUrl = await fileToDataUrl(file);
-    commitOperation({
-      type: "node/update",
-      noteId: state.selectedNoteId,
-      nodeId: state.selectedNodeId,
-      changes: { image: dataUrl }
-    });
+    createImageNode(state.selectedNodeId, dataUrl);
     event.target.value = "";
   };
 
@@ -1039,6 +1059,27 @@ window.addEventListener("keydown", (event) => {
     event.preventDefault();
     toggleCollapse(state.selectedNodeId);
   }
+});
+
+window.addEventListener("paste", async (event) => {
+  if (!state.workspace || !state.selectedNoteId) {
+    return;
+  }
+
+  const items = Array.from(event.clipboardData?.items || []);
+  const imageItem = items.find((item) => item.type.startsWith("image/"));
+  if (!imageItem) {
+    return;
+  }
+
+  const file = imageItem.getAsFile();
+  if (!file) {
+    return;
+  }
+
+  event.preventDefault();
+  const dataUrl = await fileToDataUrl(file);
+  createImageNode(state.selectedNodeId, dataUrl);
 });
 
 async function start() {
