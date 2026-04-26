@@ -644,7 +644,7 @@ const server = http.createServer(async (req, res) => {
       selectedNoteId: payload.selectedNoteId ?? null,
       selectedNodeId: payload.selectedNodeId ?? null
     };
-    broadcast({ type: "presence", presence: Object.values(state.presence) });
+    broadcast({ type: "presence", presence: Object.values(state.presence) }, payload.clientId);
     sendJson(res, 200, { ok: true });
     return;
   }

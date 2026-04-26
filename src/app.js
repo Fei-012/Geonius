@@ -452,10 +452,13 @@ function ensureValidSelection() {
   }
 }
 
-function commitOperation(operation) {
+function commitOperation(operation, options = {}) {
+  const shouldRender = options.render !== false;
   state.workspace = applyWorkspaceOperationLocally(state.workspace, operation);
   ensureValidSelection();
-  render();
+  if (shouldRender) {
+    render();
+  }
   postJson("/operation", { clientId: state.clientId, operation }).catch(console.error);
 }
 
@@ -862,8 +865,9 @@ function renderCanvas() {
       if (!parent) {
         return;
       }
+      const elbowX = parent.x + Math.max(90, (node.x - parent.x) * 0.42);
       const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      path.setAttribute("d", `M ${parent.x} ${parent.y} C ${parent.x + 110} ${parent.y}, ${node.x - 110} ${node.y}, ${node.x} ${node.y}`);
+      path.setAttribute("d", `M ${parent.x} ${parent.y} H ${elbowX} V ${node.y} H ${node.x}`);
       path.setAttribute("stroke", "#6b7280");
       path.setAttribute("stroke-width", String(3.2 / state.viewport.scale));
       path.setAttribute("stroke-linecap", "round");
@@ -950,20 +954,20 @@ function renderCanvas() {
           type: "note/update",
           noteId: state.selectedNoteId,
           changes: { title: text }
-        });
+        }, { render: false });
         commitOperation({
           type: "node/update",
           noteId: state.selectedNoteId,
           nodeId: rootId,
           changes: { text }
-        });
+        }, { render: false });
       } else {
         commitOperation({
           type: "node/update",
           noteId: state.selectedNoteId,
           nodeId: node.id,
           changes: { text }
-        });
+        }, { render: false });
       }
     };
     editor.onkeydown = (event) => {
@@ -1011,8 +1015,8 @@ function renderCanvas() {
 
   document.getElementById("note-title-input").oninput = (event) => {
     const title = event.target.value;
-    commitOperation({ type: "note/update", noteId: state.selectedNoteId, changes: { title } });
-    commitOperation({ type: "node/update", noteId: state.selectedNoteId, nodeId: rootId, changes: { text: title } });
+    commitOperation({ type: "note/update", noteId: state.selectedNoteId, changes: { title } }, { render: false });
+    commitOperation({ type: "node/update", noteId: state.selectedNoteId, nodeId: rootId, changes: { text: title } }, { render: false });
   };
 
   canvasEl.onpointerdown = (event) => {

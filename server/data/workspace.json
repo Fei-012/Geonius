@@ -1,7 +1,7 @@
 {
   "id": "shared-workspace",
   "title": "Geonius",
-  "version": 882,
+  "version": 1212,
   "folders": [
     {
       "id": "3e3dc572-e5bf-4aea-884c-3ee3e4043180",
@@ -124,23 +124,23 @@
             "text": "Stewardship",
             "order": 0,
             "x": 340,
-            "y": -186,
+            "y": -310,
             "color": "#d1d5db",
             "collapsed": false,
             "createdAt": 1777223419595,
-            "updatedAt": 1777223660304
+            "updatedAt": 1777223893435
           },
           "155de7e0-b266-4c04-860d-af0020d2f3bd": {
             "id": "155de7e0-b266-4c04-860d-af0020d2f3bd",
             "parentId": "root",
             "text": "Resource possibilities",
             "order": 1,
-            "x": 340,
-            "y": 0,
+            "x": 324.0662802419355,
+            "y": -137.74117943548387,
             "color": "#d1d5db",
             "collapsed": false,
             "createdAt": 1777223419595,
-            "updatedAt": 1777223660304
+            "updatedAt": 1777223896259
           },
           "cfc66d4c-9241-4a9d-b404-3208241da886": {
             "id": "cfc66d4c-9241-4a9d-b404-3208241da886",
@@ -148,7 +148,7 @@
             "text": "Optimistic view",
             "order": 0,
             "x": 590,
-            "y": -62,
+            "y": -186,
             "color": "#ffffff",
             "collapsed": false,
             "createdAt": 1777223419595,
@@ -160,7 +160,7 @@
             "text": "Balanced view",
             "order": 1,
             "x": 590,
-            "y": 62,
+            "y": -62,
             "color": "#ffffff",
             "collapsed": false,
             "createdAt": 1777223419595,
@@ -172,18 +172,42 @@
             "text": "New idea",
             "order": 2,
             "x": 340,
-            "y": 186,
+            "y": 62,
             "color": "#d1d5db",
             "collapsed": false,
             "createdAt": 1777223660291,
-            "updatedAt": 1777223660304
+            "updatedAt": 1777223893435
+          },
+          "node-z1gew0xz": {
+            "id": "node-z1gew0xz",
+            "parentId": "root",
+            "text": "New idea",
+            "order": 3,
+            "x": 340,
+            "y": 186,
+            "color": "#d1d5db",
+            "collapsed": false,
+            "createdAt": 1777223821159,
+            "updatedAt": 1777223893435
+          },
+          "node-4luv0ho9": {
+            "id": "node-4luv0ho9",
+            "parentId": "root",
+            "text": "New idea",
+            "order": 4,
+            "x": 340,
+            "y": 310,
+            "color": "#d1d5db",
+            "collapsed": false,
+            "createdAt": 1777223893426,
+            "updatedAt": 1777223893435
           }
         },
-        "updatedAt": 1777223660304
+        "updatedAt": 1777223896259
       },
       "createdAt": 1777223419596,
-      "updatedAt": 1777223660304
+      "updatedAt": 1777223896259
     }
   },
-  "updatedAt": 1777223772324
+  "updatedAt": 1777223896259
 }
