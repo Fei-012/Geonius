@@ -79,7 +79,7 @@ function arrangeDocument(document, focusNodeId = "root") {
 
   const rootSpacingX = 340;
   const childSpacingX = 250;
-  const siblingGapY = 28;
+  const siblingGapY = 72;
 
   function nodeBoxHeight(nodeId) {
     const node = nodes[nodeId];

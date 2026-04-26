@@ -1,7 +1,7 @@
 {
   "id": "shared-workspace",
   "title": "Geonius",
-  "version": 3456,
+  "version": 3640,
   "folders": [
     {
       "id": "3e3dc572-e5bf-4aea-884c-3ee3e4043180",
@@ -50,7 +50,7 @@
             "text": "Stewardship",
             "order": 0,
             "x": 340,
-            "y": -248,
+            "y": -262.5,
             "color": "#f97316",
             "collapsed": false,
             "createdAt": 1777221867834,
@@ -62,7 +62,7 @@
             "text": "Pessimistic view",
             "order": 1,
             "x": 340,
-            "y": -62,
+            "y": -50,
             "color": "#2563eb",
             "collapsed": false,
             "createdAt": 1777221867834,
@@ -74,7 +74,7 @@
             "text": "Images",
             "order": 2,
             "x": 340,
-            "y": 124,
+            "y": 162.5,
             "color": "#9333ea",
             "collapsed": false,
             "createdAt": 1777221867834,
@@ -86,7 +86,7 @@
             "text": "New sibling",
             "order": 3,
             "x": 340,
-            "y": 248,
+            "y": 262.5,
             "color": "#dc2626",
             "collapsed": false,
             "createdAt": 1777222333595,
@@ -98,11 +98,11 @@
             "text": "An approach to resource management which views humans as 'caretakers' of the natural world ",
             "order": 0,
             "x": 590,
-            "y": -248,
+            "y": -262.5,
             "color": "#ffffff",
             "collapsed": false,
             "createdAt": 1777224137978,
-            "updatedAt": 1777224848744
+            "updatedAt": 1777225594571
           },
           "node-zfd9nlbt": {
             "id": "node-zfd9nlbt",
@@ -110,11 +110,11 @@
             "text": "Population growth will eventually outstrip the natural resource base of the planet",
             "order": 0,
             "x": 590,
-            "y": -124,
+            "y": -170.5,
             "color": "#ffffff",
             "collapsed": false,
             "createdAt": 1777224367446,
-            "updatedAt": 1777224610405,
+            "updatedAt": 1777225621085,
             "width": 265.78713037634407,
             "height": 56
           },
@@ -122,13 +122,13 @@
             "id": "node-dx3tlpen",
             "parentId": "9db3abb1-c53f-4da1-8c8d-c32796aa7d75",
             "text": "Rising wealth and consumption will hasten the time in which this happens",
-            "order": 1,
+            "order": 2,
             "x": 590,
-            "y": 0,
+            "y": 62.5,
             "color": "#ffffff",
             "collapsed": false,
             "createdAt": 1777224408428,
-            "updatedAt": 1777224575434,
+            "updatedAt": 1777225590338,
             "width": 335.1251680107527,
             "height": 72
           },
@@ -138,19 +138,33 @@
             "text": "",
             "order": 0,
             "x": 840,
-            "y": -248,
+            "y": -262.5,
             "width": 220,
             "height": 72,
             "color": "#ffffff",
             "collapsed": false,
             "createdAt": 1777224854896,
             "updatedAt": 1777224856522
+          },
+          "node-2ybkg2sy": {
+            "id": "node-2ybkg2sy",
+            "parentId": "9db3abb1-c53f-4da1-8c8d-c32796aa7d75",
+            "text": "sjndvn,vmnc,mndvf,ndlkfvflknd,nmvc,nx,cmn,mnvx,mnc,vmnx,cmnv,xmc",
+            "order": 1,
+            "x": 590,
+            "y": -58,
+            "width": 220,
+            "height": 113,
+            "color": "#ffffff",
+            "collapsed": false,
+            "createdAt": 1777225567706,
+            "updatedAt": 1777225591703
           }
         },
-        "updatedAt": 1777224923163
+        "updatedAt": 1777225623322
       },
       "createdAt": 1777222721462,
-      "updatedAt": 1777224923163
+      "updatedAt": 1777225623322
     },
     "84a82920-4e84-41c3-9044-c1b1a13ce509": {
       "id": "84a82920-4e84-41c3-9044-c1b1a13ce509",
@@ -178,7 +192,7 @@
             "text": "Stewardship",
             "order": 0,
             "x": 340,
-            "y": -283.50390625,
+            "y": -250,
             "color": "#d1d5db",
             "collapsed": false,
             "createdAt": 1777223419595,
@@ -189,8 +203,8 @@
             "parentId": "root",
             "text": "Resource possibilities",
             "order": 1,
-            "x": 340.5573551829268,
-            "y": -77.62490472560977,
+            "x": 340,
+            "y": -100,
             "color": "#d1d5db",
             "collapsed": false,
             "createdAt": 1777223419595,
@@ -203,8 +217,8 @@
             "parentId": "155de7e0-b266-4c04-860d-af0020d2f3bd",
             "text": "Optimistic view",
             "order": 0,
-            "x": 698.2602896341464,
-            "y": -165.91587271341461,
+            "x": 590,
+            "y": -150,
             "color": "#ffffff",
             "collapsed": false,
             "createdAt": 1777223419595,
@@ -215,8 +229,8 @@
             "parentId": "155de7e0-b266-4c04-860d-af0020d2f3bd",
             "text": "Balanced viewljsdlkjdslkfjlskdjlkfdjlskjdlkjsldkj",
             "order": 1,
-            "x": 804.1788863289912,
-            "y": 1.2794787624722233,
+            "x": 590,
+            "y": -50,
             "color": "#ffffff",
             "collapsed": false,
             "createdAt": 1777223419595,
@@ -230,7 +244,7 @@
             "text": "New idea",
             "order": 2,
             "x": 340,
-            "y": 88.49609375,
+            "y": 50,
             "color": "#d1d5db",
             "collapsed": false,
             "createdAt": 1777223660291,
@@ -242,7 +256,7 @@
             "text": "New idea",
             "order": 3,
             "x": 340,
-            "y": 212.49609375,
+            "y": 150,
             "color": "#d1d5db",
             "collapsed": false,
             "createdAt": 1777223821159,
@@ -254,7 +268,7 @@
             "text": "New idea",
             "order": 4,
             "x": 340,
-            "y": 336.49609375,
+            "y": 250,
             "color": "#d1d5db",
             "collapsed": false,
             "createdAt": 1777223893426,
@@ -265,8 +279,8 @@
             "parentId": "9fe1e9a1-5675-447f-9d67-e94bc9ecf716",
             "text": "New idea",
             "order": 0,
-            "x": 1248.2325734478939,
-            "y": 0.34827986419062995,
+            "x": 840,
+            "y": -50,
             "width": 220,
             "height": 72,
             "color": "#ffffff",
@@ -279,8 +293,8 @@
             "parentId": "14d6f8e2-0b7b-45f2-ae91-e8de7b89c457",
             "text": "An approach to resource management which views humans as 'caretakers' of the natural world",
             "order": 0,
-            "x": 773.453924005682,
-            "y": -287.240234375,
+            "x": 590,
+            "y": -250,
             "width": 580.0097656250005,
             "height": 56,
             "color": "#ffffff",
@@ -289,11 +303,11 @@
             "updatedAt": 1777225424136
           }
         },
-        "updatedAt": 1777225505405
+        "updatedAt": 1777225545163
       },
       "createdAt": 1777223419596,
-      "updatedAt": 1777225505405
+      "updatedAt": 1777225545163
     }
   },
-  "updatedAt": 1777225505405
+  "updatedAt": 1777225623322
 }

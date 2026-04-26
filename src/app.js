@@ -215,7 +215,7 @@ function applyWorkspaceOperationLocally(workspace, operation) {
     nodes[rootId] = { ...nodes[rootId], x: 0, y: 0 };
     const rootSpacingX = 340;
     const childSpacingX = 250;
-    const siblingGapY = 28;
+    const siblingGapY = 72;
 
     function nodeBoxHeight(nodeId) {
       const node = nodes[nodeId];
