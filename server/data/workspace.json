@@ -1,7 +1,7 @@
 {
   "id": "shared-workspace",
   "title": "Geonius",
-  "version": 5084,
+  "version": 5337,
   "folders": [
     {
       "id": "3e3dc572-e5bf-4aea-884c-3ee3e4043180",
@@ -208,7 +208,7 @@
             "color": "#d1d5db",
             "collapsed": false,
             "createdAt": 1777223419595,
-            "updatedAt": 1777225495483,
+            "updatedAt": 1777226344303,
             "width": 220,
             "height": 72
           },
@@ -222,7 +222,7 @@
             "color": "#ffffff",
             "collapsed": false,
             "createdAt": 1777223419595,
-            "updatedAt": 1777225498900
+            "updatedAt": 1777226299757
           },
           "9fe1e9a1-5675-447f-9d67-e94bc9ecf716": {
             "id": "9fe1e9a1-5675-447f-9d67-e94bc9ecf716",
@@ -234,8 +234,8 @@
             "color": "#ffffff",
             "collapsed": false,
             "createdAt": 1777223419595,
-            "updatedAt": 1777226210525,
-            "height": 106.21807898773005,
+            "updatedAt": 1777226320537,
+            "height": 116.76104773773005,
             "width": 425.3267045454548
           },
           "node-1a8an9gl": {
@@ -279,14 +279,14 @@
             "parentId": "9fe1e9a1-5675-447f-9d67-e94bc9ecf716",
             "text": "New idea",
             "order": 0,
-            "x": 1120.059335443038,
+            "x": 1070,
             "y": -71.99999999999994,
             "width": 143.6451740506329,
             "height": 327.3667534722223,
             "color": "#ffffff",
             "collapsed": false,
             "createdAt": 1777224988195,
-            "updatedAt": 1777226259352
+            "updatedAt": 1777226400984
           },
           "node-l6qd0wyj": {
             "id": "node-l6qd0wyj",
@@ -300,14 +300,14 @@
             "color": "#ffffff",
             "collapsed": false,
             "createdAt": 1777225410384,
-            "updatedAt": 1777226217978
+            "updatedAt": 1777226311220
           }
         },
-        "updatedAt": 1777226259352
+        "updatedAt": 1777226401332
       },
       "createdAt": 1777223419596,
-      "updatedAt": 1777226259352
+      "updatedAt": 1777226401332
     }
   },
-  "updatedAt": 1777226259352
+  "updatedAt": 1777226401332
 }

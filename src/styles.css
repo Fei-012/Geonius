@@ -385,6 +385,12 @@ button {
   box-shadow: 0 0 0 2px rgba(17, 24, 39, 0.28);
 }
 
+.map-node.drop-target {
+  border-width: 2px;
+  border-color: #2563eb !important;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.18);
+}
+
 .root-node {
   background: #111111;
   color: #ffffff;

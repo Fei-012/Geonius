@@ -779,6 +779,46 @@ function createSiblingNode(nodeId) {
   syncPresence();
 }
 
+function isAncestorNode(document, ancestorId, nodeId) {
+  let current = document.nodes[nodeId];
+  while (current && current.parentId) {
+    if (current.parentId === ancestorId) {
+      return true;
+    }
+    current = document.nodes[current.parentId];
+  }
+  return false;
+}
+
+function moveNodeToParent(nodeId, nextParentId) {
+  const document = currentDocument();
+  if (!document) {
+    return;
+  }
+
+  const node = document.nodes[nodeId];
+  const nextParent = document.nodes[nextParentId];
+  if (!node || !nextParent || nodeId === rootId || node.parentId === nextParentId) {
+    return;
+  }
+  if (isAncestorNode(document, nodeId, nextParentId)) {
+    return;
+  }
+
+  const nextOrder = getChildren(document, nextParentId).length;
+  const movedNode = {
+    ...node,
+    parentId: nextParentId,
+    order: nextOrder
+  };
+
+  commitOperation({
+    type: "node/upsert",
+    noteId: state.selectedNoteId,
+    node: movedNode
+  });
+}
+
 function deleteSelectedNode() {
   if (state.selectedNodeId === rootId) {
     return;
@@ -1078,8 +1118,12 @@ function renderCanvas() {
 
   visibleNodes.forEach((node) => {
     const { width, height } = getNodeSize(node);
+    const isDropTarget =
+      dragState?.moved &&
+      dragState?.nodeId !== node.id &&
+      dragState?.dropTargetId === node.id;
     const card = document.createElement("article");
-    card.className = `map-node ${state.selectedNodeId === node.id ? "selected" : ""} ${node.id === rootId ? "root-node" : ""}`;
+    card.className = `map-node ${state.selectedNodeId === node.id ? "selected" : ""} ${node.id === rootId ? "root-node" : ""} ${isDropTarget ? "drop-target" : ""}`;
     card.style.left = `${node.x}px`;
     card.style.top = `${node.y}px`;
     card.style.borderColor = node.color || "#111827";
@@ -1121,21 +1165,30 @@ function renderCanvas() {
         card.style.cursor = cursorForResizeDirection(resizeDirection);
         return;
       }
-      const point = screenToCanvas(event.clientX, event.clientY);
       dragState = {
         nodeId: node.id,
-        offsetX: point.x - node.x,
-        offsetY: point.y - node.y,
         startX: event.clientX,
         startY: event.clientY,
-        moved: false
+        moved: false,
+        dropTargetId: null
       };
-      render();
     };
 
     card.onpointermove = (event) => {
       const direction = getResizeDirection(event, card);
       card.style.cursor = cursorForResizeDirection(direction) || "";
+
+      if (
+        dragState &&
+        dragState.nodeId !== node.id &&
+        dragState.moved &&
+        !isAncestorNode(documentModel, dragState.nodeId, node.id)
+      ) {
+        if (dragState.dropTargetId !== node.id) {
+          dragState.dropTargetId = node.id;
+          render();
+        }
+      }
     };
 
     card.onclick = (event) => {
@@ -1320,17 +1373,8 @@ function renderCanvas() {
         (Math.abs(event.clientX - dragState.startX) > 4 || Math.abs(event.clientY - dragState.startY) > 4)
       ) {
         dragState.moved = true;
+        render();
       }
-      const point = screenToCanvas(event.clientX, event.clientY);
-      commitOperation({
-        type: "node/update",
-        noteId: state.selectedNoteId,
-        nodeId: dragState.nodeId,
-        changes: {
-          x: point.x - dragState.offsetX,
-          y: point.y - dragState.offsetY
-        }
-      });
       return;
     }
 
@@ -1344,17 +1388,22 @@ function renderCanvas() {
 
   canvasEl.onpointerup = () => {
     resizeState = null;
+    if (dragState?.moved && dragState.dropTargetId) {
+      moveNodeToParent(dragState.nodeId, dragState.dropTargetId);
+    }
     if (dragState?.moved) {
       suppressNodeClickUntil = Date.now() + 180;
     }
     dragState = null;
     panState = null;
+    render();
   };
 
   canvasEl.onpointerleave = () => {
     resizeState = null;
     dragState = null;
     panState = null;
+    render();
   };
 
   canvasEl.onwheel = (event) => {
