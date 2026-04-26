@@ -213,11 +213,8 @@ function applyWorkspaceOperationLocally(workspace, operation) {
 
     const nodes = { ...document.nodes };
     nodes[rootId] = { ...nodes[rootId], x: 0, y: 0 };
-    const rootSpacingX = 430;
-    const childSpacingX = 320;
+    const columnGapX = 120;
     const siblingGapY = 72;
-    const collisionPaddingX = 96;
-    const collisionPaddingY = 36;
 
     function nodeBoxWidth(nodeId) {
       const node = nodes[nodeId];
@@ -253,93 +250,30 @@ function applyWorkspaceOperationLocally(workspace, operation) {
       return Math.max(nodeBoxHeight(nodeId), childrenHeight);
     }
 
-    function isVisibleLocal(nodeId) {
-      let current = nodes[nodeId];
-      while (current && current.parentId) {
-        const parent = nodes[current.parentId];
-        if (!parent || parent.collapsed) {
-          return false;
-        }
-        current = parent;
-      }
-      return true;
+    const depthById = {};
+    let maxDepth = 0;
+
+    function assignDepth(nodeId, depth) {
+      depthById[nodeId] = depth;
+      maxDepth = Math.max(maxDepth, depth);
+      const children = getChildrenLocal({ ...document, nodes }, nodeId);
+      children.forEach((child) => assignDepth(child.id, depth + 1));
     }
 
-    function isAncestor(ancestorId, nodeId) {
-      let current = nodes[nodeId];
-      while (current && current.parentId) {
-        if (current.parentId === ancestorId) {
-          return true;
-        }
-        current = nodes[current.parentId];
-      }
-      return false;
-    }
+    assignDepth(rootId, 0);
 
-    function collectSubtreeIds(nodeId) {
-      const ids = [nodeId];
-      const stack = [nodeId];
-      while (stack.length > 0) {
-        const current = stack.pop();
-        const children = getChildrenLocal({ ...document, nodes }, current);
-        children.forEach((child) => {
-          ids.push(child.id);
-          stack.push(child.id);
-        });
-      }
-      return ids;
-    }
+    const maxWidthByDepth = {};
+    Object.keys(depthById).forEach((id) => {
+      const depth = depthById[id];
+      maxWidthByDepth[depth] = Math.max(maxWidthByDepth[depth] ?? 0, nodeBoxWidth(id));
+    });
 
-    function shiftSubtree(nodeId, shiftX, shiftY) {
-      if (nodeId === rootId) {
-        return;
-      }
-      collectSubtreeIds(nodeId).forEach((id) => {
-        nodes[id] = {
-          ...nodes[id],
-          x: nodes[id].x + shiftX,
-          y: nodes[id].y + shiftY
-        };
-      });
-    }
-
-    function resolveCollisions() {
-      const visibleRoots = Object.values(nodes)
-        .filter((node) => node.id !== rootId && isVisibleLocal(node.id))
-        .sort((a, b) => a.x - b.x || a.y - b.y);
-
-      for (let iteration = 0; iteration < 8; iteration += 1) {
-        let changed = false;
-
-        for (let i = 0; i < visibleRoots.length; i += 1) {
-          for (let j = i + 1; j < visibleRoots.length; j += 1) {
-            const a = nodes[visibleRoots[i].id];
-            const b = nodes[visibleRoots[j].id];
-            if (!a || !b) {
-              continue;
-            }
-            if (isAncestor(a.id, b.id) || isAncestor(b.id, a.id)) {
-              continue;
-            }
-
-            const overlapX = nodeBoxWidth(a.id) / 2 + nodeBoxWidth(b.id) / 2 + collisionPaddingX - Math.abs(b.x - a.x);
-            const overlapY = nodeBoxHeight(a.id) / 2 + nodeBoxHeight(b.id) / 2 + collisionPaddingY - Math.abs(b.y - a.y);
-
-            if (overlapX > 0 && overlapY > 0) {
-              const shiftX = overlapX / 2;
-              const shiftY = overlapY / 2;
-
-              shiftSubtree(a.id, -shiftX * 0.9, b.y >= a.y ? -shiftY * 0.3 : shiftY * 0.3);
-              shiftSubtree(b.id, shiftX * 1.1, b.y >= a.y ? shiftY * 0.7 : -shiftY * 0.7);
-              changed = true;
-            }
-          }
-        }
-
-        if (!changed) {
-          break;
-        }
-      }
+    const columnCenterXByDepth = { 0: 0 };
+    for (let depth = 1; depth <= maxDepth; depth += 1) {
+      const previousWidth = maxWidthByDepth[depth - 1] ?? 220;
+      const currentWidth = maxWidthByDepth[depth] ?? 220;
+      columnCenterXByDepth[depth] =
+        columnCenterXByDepth[depth - 1] + previousWidth / 2 + currentWidth / 2 + columnGapX;
     }
 
     function placeChildren(parentId, startY) {
@@ -357,9 +291,10 @@ function applyWorkspaceOperationLocally(workspace, operation) {
       children.forEach((child) => {
         const units = branchHeight(child.id);
         const centerY = cursor + units / 2;
+        const childDepth = depthById[child.id] ?? 1;
         nodes[child.id] = {
           ...nodes[child.id],
-          x: parent.x + (parentId === rootId ? rootSpacingX : childSpacingX),
+          x: columnCenterXByDepth[childDepth],
           y: centerY
         };
         placeChildren(child.id, centerY);
@@ -368,7 +303,6 @@ function applyWorkspaceOperationLocally(workspace, operation) {
     }
 
     placeChildren(rootId, 0);
-    resolveCollisions();
 
     if (focusNodeId !== rootId && nodes[focusNodeId] && document.nodes[focusNodeId]) {
       const drift = document.nodes[focusNodeId].y - nodes[focusNodeId].y;
@@ -1284,11 +1218,16 @@ function renderCanvas() {
       event.preventDefault();
       state.selectedNodeId = node.id;
     };
-    addButton.onclick = (event) => {
+    addButton.onpointerup = (event) => {
       event.stopPropagation();
+      event.preventDefault();
       state.selectedNodeId = node.id;
       syncPresence();
       createChildNode(node.id);
+    };
+    addButton.onclick = (event) => {
+      event.stopPropagation();
+      event.preventDefault();
     };
 
     if (state.focusEditorNodeId === node.id) {

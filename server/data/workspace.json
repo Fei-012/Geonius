@@ -1,7 +1,7 @@
 {
   "id": "shared-workspace",
   "title": "Geonius",
-  "version": 5337,
+  "version": 5723,
   "folders": [
     {
       "id": "3e3dc572-e5bf-4aea-884c-3ee3e4043180",
@@ -192,11 +192,13 @@
             "text": "Stewardship",
             "order": 0,
             "x": 430,
-            "y": -487.6833767361111,
+            "y": -304.7536892361112,
             "color": "#d1d5db",
             "collapsed": false,
             "createdAt": 1777223419595,
-            "updatedAt": 1777223893435
+            "updatedAt": 1777226822447,
+            "width": 220,
+            "height": 72
           },
           "155de7e0-b266-4c04-860d-af0020d2f3bd": {
             "id": "155de7e0-b266-4c04-860d-af0020d2f3bd",
@@ -204,13 +206,13 @@
             "text": "Resource possibilities",
             "order": 1,
             "x": 430,
-            "y": -143.99999999999994,
+            "y": -72.00000000000003,
             "color": "#d1d5db",
             "collapsed": false,
             "createdAt": 1777223419595,
-            "updatedAt": 1777226344303,
+            "updatedAt": 1777226822447,
             "width": 220,
-            "height": 72
+            "height": 71.61979166666667
           },
           "cfc66d4c-9241-4a9d-b404-3208241da886": {
             "id": "cfc66d4c-9241-4a9d-b404-3208241da886",
@@ -218,7 +220,7 @@
             "text": "Optimistic view",
             "order": 0,
             "x": 750,
-            "y": -343.6833767361111,
+            "y": -160.7536892361112,
             "color": "#ffffff",
             "collapsed": false,
             "createdAt": 1777223419595,
@@ -229,50 +231,38 @@
             "parentId": "155de7e0-b266-4c04-860d-af0020d2f3bd",
             "text": "Balanced viewljsdlkjdslkfjlskdjlkfdjlskjdlkjsldkj",
             "order": 1,
-            "x": 750,
-            "y": -71.99999999999994,
+            "x": 761.0260416666666,
+            "y": -0.08333333333336057,
             "color": "#ffffff",
             "collapsed": false,
             "createdAt": 1777223419595,
-            "updatedAt": 1777226320537,
-            "height": 116.76104773773005,
-            "width": 425.3267045454548
-          },
-          "node-1a8an9gl": {
-            "id": "node-1a8an9gl",
-            "parentId": "root",
-            "text": "New idea",
-            "order": 2,
-            "x": 430,
-            "y": 199.6833767361112,
-            "color": "#d1d5db",
-            "collapsed": false,
-            "createdAt": 1777223660291,
-            "updatedAt": 1777223893435
+            "updatedAt": 1777226965740,
+            "height": 56,
+            "width": 325.8996212121215
           },
           "node-z1gew0xz": {
             "id": "node-z1gew0xz",
             "parentId": "root",
             "text": "New idea",
-            "order": 3,
+            "order": 2,
             "x": 430,
-            "y": 343.6833767361112,
+            "y": 160.75368923611114,
             "color": "#d1d5db",
             "collapsed": false,
             "createdAt": 1777223821159,
-            "updatedAt": 1777223893435
+            "updatedAt": 1777226822447
           },
           "node-4luv0ho9": {
             "id": "node-4luv0ho9",
             "parentId": "root",
             "text": "New idea",
-            "order": 4,
+            "order": 3,
             "x": 430,
-            "y": 487.6833767361112,
+            "y": 304.75368923611114,
             "color": "#d1d5db",
             "collapsed": false,
             "createdAt": 1777223893426,
-            "updatedAt": 1777223893435
+            "updatedAt": 1777226822447
           },
           "node-ycp613q3": {
             "id": "node-ycp613q3",
@@ -280,13 +270,13 @@
             "text": "New idea",
             "order": 0,
             "x": 1070,
-            "y": -71.99999999999994,
+            "y": -2.842170943040401e-14,
             "width": 143.6451740506329,
-            "height": 327.3667534722223,
+            "height": 105.50737847222234,
             "color": "#ffffff",
             "collapsed": false,
             "createdAt": 1777224988195,
-            "updatedAt": 1777226400984
+            "updatedAt": 1777226784593
           },
           "node-l6qd0wyj": {
             "id": "node-l6qd0wyj",
@@ -294,20 +284,20 @@
             "text": "An approach to resource management which views humans as 'caretakers' of the natural world",
             "order": 0,
             "x": 750,
-            "y": -487.6833767361111,
-            "width": 580.0097656250005,
-            "height": 56,
+            "y": -304.7536892361112,
+            "width": 419.5930989583338,
+            "height": 58.723958333333336,
             "color": "#ffffff",
             "collapsed": false,
             "createdAt": 1777225410384,
-            "updatedAt": 1777226311220
+            "updatedAt": 1777226945568
           }
         },
-        "updatedAt": 1777226401332
+        "updatedAt": 1777226965740
       },
       "createdAt": 1777223419596,
-      "updatedAt": 1777226401332
+      "updatedAt": 1777226965740
     }
   },
-  "updatedAt": 1777226401332
+  "updatedAt": 1777226965740
 }

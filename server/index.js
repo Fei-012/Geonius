@@ -77,11 +77,8 @@ function arrangeDocument(document, focusNodeId = "root") {
   const nodes = { ...document.nodes };
   nodes.root = { ...nodes.root, x: 0, y: 0 };
 
-  const rootSpacingX = 430;
-  const childSpacingX = 320;
+  const columnGapX = 120;
   const siblingGapY = 72;
-  const collisionPaddingX = 96;
-  const collisionPaddingY = 36;
 
   function nodeBoxWidth(nodeId) {
     const node = nodes[nodeId];
@@ -117,94 +114,32 @@ function arrangeDocument(document, focusNodeId = "root") {
     return Math.max(nodeBoxHeight(nodeId), childrenHeight);
   }
 
-  function isVisible(nodeId) {
-    let current = nodes[nodeId];
-    while (current && current.parentId) {
-      const parent = nodes[current.parentId];
-      if (!parent || parent.collapsed) {
-        return false;
-      }
-      current = parent;
+  const depthById = {};
+  let maxDepth = 0;
+
+  function assignDepth(nodeId, depth) {
+    depthById[nodeId] = depth;
+    maxDepth = Math.max(maxDepth, depth);
+    const children = getChildren({ ...document, nodes }, nodeId);
+    for (const child of children) {
+      assignDepth(child.id, depth + 1);
     }
-    return true;
   }
 
-  function isAncestor(ancestorId, nodeId) {
-    let current = nodes[nodeId];
-    while (current && current.parentId) {
-      if (current.parentId === ancestorId) {
-        return true;
-      }
-      current = nodes[current.parentId];
-    }
-    return false;
-  }
+  assignDepth("root", 0);
 
-  function collectSubtreeIds(nodeId) {
-    const ids = [nodeId];
-    const stack = [nodeId];
-    while (stack.length > 0) {
-      const current = stack.pop();
-      const children = getChildren({ ...document, nodes }, current);
-      for (const child of children) {
-        ids.push(child.id);
-        stack.push(child.id);
-      }
-    }
-    return ids;
-  }
+  const maxWidthByDepth = {};
+  Object.keys(depthById).forEach((id) => {
+    const depth = depthById[id];
+    maxWidthByDepth[depth] = Math.max(maxWidthByDepth[depth] ?? 0, nodeBoxWidth(id));
+  });
 
-  function shiftSubtree(nodeId, shiftX, shiftY) {
-    if (nodeId === "root") {
-      return;
-    }
-    const ids = collectSubtreeIds(nodeId);
-    ids.forEach((id) => {
-      nodes[id] = {
-        ...nodes[id],
-        x: nodes[id].x + shiftX,
-        y: nodes[id].y + shiftY
-      };
-    });
-  }
-
-  function resolveCollisions() {
-    const visibleRoots = Object.values(nodes)
-      .filter((node) => node.id !== "root" && isVisible(node.id))
-      .sort((a, b) => a.x - b.x || a.y - b.y);
-
-    for (let iteration = 0; iteration < 8; iteration += 1) {
-      let changed = false;
-
-      for (let i = 0; i < visibleRoots.length; i += 1) {
-        for (let j = i + 1; j < visibleRoots.length; j += 1) {
-          const a = nodes[visibleRoots[i].id];
-          const b = nodes[visibleRoots[j].id];
-          if (!a || !b) {
-            continue;
-          }
-          if (isAncestor(a.id, b.id) || isAncestor(b.id, a.id)) {
-            continue;
-          }
-
-          const overlapX = nodeBoxWidth(a.id) / 2 + nodeBoxWidth(b.id) / 2 + collisionPaddingX - Math.abs(b.x - a.x);
-          const overlapY = nodeBoxHeight(a.id) / 2 + nodeBoxHeight(b.id) / 2 + collisionPaddingY - Math.abs(b.y - a.y);
-
-          if (overlapX > 0 && overlapY > 0) {
-            const shiftX = overlapX / 2;
-            const shiftY = overlapY / 2;
-
-            shiftSubtree(a.id, -shiftX * 0.9, b.y >= a.y ? -shiftY * 0.3 : shiftY * 0.3);
-            shiftSubtree(b.id, shiftX * 1.1, b.y >= a.y ? shiftY * 0.7 : -shiftY * 0.7);
-            changed = true;
-          }
-        }
-      }
-
-      if (!changed) {
-        break;
-      }
-    }
+  const columnCenterXByDepth = { 0: 0 };
+  for (let depth = 1; depth <= maxDepth; depth += 1) {
+    const previousWidth = maxWidthByDepth[depth - 1] ?? 220;
+    const currentWidth = maxWidthByDepth[depth] ?? 220;
+    columnCenterXByDepth[depth] =
+      columnCenterXByDepth[depth - 1] + previousWidth / 2 + currentWidth / 2 + columnGapX;
   }
 
   function placeChildren(parentId, startY) {
@@ -222,11 +157,11 @@ function arrangeDocument(document, focusNodeId = "root") {
     for (const child of children) {
       const units = subtreeHeight(child.id);
       const branchCenterY = cursor + units / 2;
-      const xShift = parentId === "root" ? rootSpacingX : childSpacingX;
+      const childDepth = depthById[child.id] ?? 1;
 
       nodes[child.id] = {
         ...nodes[child.id],
-        x: parent.x + xShift,
+        x: columnCenterXByDepth[childDepth],
         y: branchCenterY
       };
 
@@ -236,7 +171,6 @@ function arrangeDocument(document, focusNodeId = "root") {
   }
 
   placeChildren("root", 0);
-  resolveCollisions();
 
   if (focusNodeId !== "root" && nodes[focusNodeId] && document.nodes[focusNodeId]) {
     const drift = document.nodes[focusNodeId].y - nodes[focusNodeId].y;
