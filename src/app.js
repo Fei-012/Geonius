@@ -1241,8 +1241,8 @@ function renderCanvas() {
     }
 
     event.preventDefault();
-    const panFactor = 0.62;
-    state.viewport.x += event.deltaX * panFactor;
+    const panFactor = 0.78;
+    state.viewport.x -= event.deltaX * panFactor;
     state.viewport.y -= event.deltaY * panFactor;
     render();
   };
