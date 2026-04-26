@@ -1,7 +1,7 @@
 {
   "id": "shared-workspace",
   "title": "Geonius",
-  "version": 6050,
+  "version": 6056,
   "folders": [
     {
       "id": "3e3dc572-e5bf-4aea-884c-3ee3e4043180",
@@ -161,10 +161,10 @@
             "updatedAt": 1777226076360
           }
         },
-        "updatedAt": 1777227828556
+        "updatedAt": 1777232317274
       },
       "createdAt": 1777222721462,
-      "updatedAt": 1777227828556
+      "updatedAt": 1777232317274
     },
     "84a82920-4e84-41c3-9044-c1b1a13ce509": {
       "id": "84a82920-4e84-41c3-9044-c1b1a13ce509",
@@ -303,5 +303,5 @@
       "updatedAt": 1777230707235
     }
   },
-  "updatedAt": 1777230707235
+  "updatedAt": 1777232317274
 }

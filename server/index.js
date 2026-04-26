@@ -383,7 +383,7 @@ function applyDocumentOperation(document, operation) {
         return document;
       }
 
-      return {
+      const nextDocument = {
         ...document,
         nodes: {
           ...document.nodes,
@@ -395,6 +395,16 @@ function applyDocumentOperation(document, operation) {
         },
         updatedAt: now()
       };
+
+      if (
+        "collapsed" in (operation.changes || {}) ||
+        "width" in (operation.changes || {}) ||
+        "height" in (operation.changes || {})
+      ) {
+        return arrangeDocument(nextDocument, operation.nodeId);
+      }
+
+      return nextDocument;
     }
     case "node/remove": {
       if (operation.nodeId === "root") {

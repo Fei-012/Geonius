@@ -7,6 +7,8 @@ const state = {
   selectedNoteId: null,
   selectedNodeId: rootId,
   focusEditorNodeId: null,
+  editingNodeId: null,
+  selectAllOnFocus: false,
   sidebarCollapsed: false,
   expandedFolders: {},
   search: "",
@@ -375,7 +377,7 @@ function applyWorkspaceOperationLocally(workspace, operation) {
         if (!current) {
           return document;
         }
-        return {
+        const nextDocument = {
           ...document,
           nodes: {
             ...document.nodes,
@@ -387,6 +389,14 @@ function applyWorkspaceOperationLocally(workspace, operation) {
           },
           updatedAt: stamp
         };
+        if (
+          "collapsed" in (docOperation.changes || {}) ||
+          "width" in (docOperation.changes || {}) ||
+          "height" in (docOperation.changes || {})
+        ) {
+          return arrangeDocument(nextDocument, docOperation.nodeId);
+        }
+        return nextDocument;
       }
       case "node/remove": {
         if (docOperation.nodeId === rootId) {
@@ -599,6 +609,15 @@ function commitOperation(operation, options = {}) {
   postJson("/operation", { clientId: state.clientId, operation }).catch(console.error);
 }
 
+function beginEditingNode(nodeId, selectAll = false) {
+  state.selectedNodeId = nodeId;
+  state.focusEditorNodeId = nodeId;
+  state.editingNodeId = nodeId;
+  state.selectAllOnFocus = selectAll;
+  syncPresence();
+  render();
+}
+
 function syncPresence() {
   postJson("/presence", {
     clientId: state.clientId,
@@ -784,6 +803,9 @@ function toggleCollapse(nodeId) {
     nodeId,
     changes: { collapsed: !node.collapsed }
   });
+  if (state.editingNodeId === nodeId) {
+    state.editingNodeId = null;
+  }
 }
 
 function moveSibling(nodeId, direction) {
@@ -1083,8 +1105,10 @@ function renderCanvas() {
     card.style.minHeight = `${height}px`;
 
     const viewers = otherUsers.filter((member) => member.selectedNoteId === state.selectedNoteId && member.selectedNodeId === node.id);
-    const actionMode = state.selectedNodeId === node.id ? "add" : node.collapsed ? "expand" : "collapse";
-    const actionLabel = actionMode === "add" ? "+" : actionMode === "expand" ? "+" : "−";
+    const hasChildren = getChildren(documentModel, node.id).length > 0;
+    const isSelected = state.selectedNodeId === node.id;
+    const actionMode = isSelected ? "add" : hasChildren ? (node.collapsed ? "expand" : "collapse") : "add";
+    const actionLabel = actionMode === "collapse" ? "−" : "+";
     const actionTitle = actionMode === "add" ? "Add branch" : actionMode === "expand" ? "Expand" : "Collapse";
 
     card.innerHTML = `
@@ -1124,6 +1148,7 @@ function renderCanvas() {
         nodeId: node.id,
         startX: event.clientX,
         startY: event.clientY,
+        wasSelected: state.selectedNodeId === node.id,
         moved: false,
         dropTargetId: null
       };
@@ -1151,18 +1176,19 @@ function renderCanvas() {
         return;
       }
       event.stopPropagation();
+      if (state.selectedNodeId === node.id) {
+        beginEditingNode(node.id, false);
+        return;
+      }
       state.selectedNodeId = node.id;
-      state.focusEditorNodeId = node.id;
+      state.editingNodeId = null;
       syncPresence();
       render();
     };
 
     card.ondblclick = (event) => {
       event.stopPropagation();
-      state.selectedNodeId = node.id;
-      state.focusEditorNodeId = node.id;
-      syncPresence();
-      render();
+      beginEditingNode(node.id, true);
     };
 
     const editor = card.querySelector(".node-editor");
@@ -1177,6 +1203,7 @@ function renderCanvas() {
     };
     editor.onfocus = () => {
       state.selectedNodeId = node.id;
+       state.editingNodeId = node.id;
       syncPresence();
     };
     editor.oninput = (event) => {
@@ -1222,6 +1249,7 @@ function renderCanvas() {
       }
     };
     editor.onblur = () => {
+      state.editingNodeId = null;
       commitOperation({
         type: "nodes/arrange",
         noteId: state.selectedNoteId,
@@ -1232,14 +1260,15 @@ function renderCanvas() {
     const addButton = card.querySelector(".node-add-button");
     addButton.onpointerdown = (event) => {
       event.stopPropagation();
-      state.selectedNodeId = node.id;
+      event.preventDefault();
     };
-    addButton.onclick = (event) => {
+    addButton.onpointerup = (event) => {
       event.stopPropagation();
       event.preventDefault();
-      state.selectedNodeId = node.id;
-      syncPresence();
+      state.editingNodeId = null;
       if (actionMode === "add") {
+        state.selectedNodeId = node.id;
+        syncPresence();
         createChildNode(node.id);
       } else {
         toggleCollapse(node.id);
@@ -1249,10 +1278,16 @@ function renderCanvas() {
     if (state.focusEditorNodeId === node.id) {
       requestAnimationFrame(() => {
         editor.focus();
-        editor.select();
+        if (state.selectAllOnFocus) {
+          editor.select();
+        } else {
+          const length = editor.value.length;
+          editor.setSelectionRange(length, length);
+        }
         autoGrowNodeCard(card, editor, node, false);
       });
       state.focusEditorNodeId = null;
+      state.selectAllOnFocus = false;
     }
 
     requestAnimationFrame(() => {
@@ -1271,6 +1306,7 @@ function renderCanvas() {
   canvasEl.onpointerdown = (event) => {
     if (event.target === canvasEl) {
       state.selectedNodeId = rootId;
+      state.editingNodeId = null;
       syncPresence();
       panState = { x: event.clientX, y: event.clientY };
       commitOperation({
@@ -1288,24 +1324,18 @@ function renderCanvas() {
       const dy = (event.clientY - resizeState.startY) / state.viewport.scale;
       let nextWidth = resizeState.startWidth;
       let nextHeight = resizeState.startHeight;
-      let nextX = resizeState.startNodeX;
-      let nextY = resizeState.startNodeY;
 
       if (resizeState.direction.includes("e")) {
         nextWidth = Math.max(120, resizeState.startWidth + dx);
-        nextX = resizeState.startNodeX + (nextWidth - resizeState.startWidth) / 2;
       }
       if (resizeState.direction.includes("w")) {
         nextWidth = Math.max(120, resizeState.startWidth - dx);
-        nextX = resizeState.startNodeX - (nextWidth - resizeState.startWidth) / 2;
       }
       if (resizeState.direction.includes("s")) {
         nextHeight = Math.max(56, resizeState.startHeight + dy);
-        nextY = resizeState.startNodeY + (nextHeight - resizeState.startHeight) / 2;
       }
       if (resizeState.direction.includes("n")) {
         nextHeight = Math.max(56, resizeState.startHeight - dy);
-        nextY = resizeState.startNodeY - (nextHeight - resizeState.startHeight) / 2;
       }
 
       commitOperation({
@@ -1313,8 +1343,6 @@ function renderCanvas() {
         noteId: state.selectedNoteId,
         nodeId: resizeState.nodeId,
         changes: {
-          x: nextX,
-          y: nextY,
           width: nextWidth,
           height: nextHeight
         }
@@ -1342,6 +1370,7 @@ function renderCanvas() {
   };
 
   canvasEl.onpointerup = () => {
+    const shouldRender = Boolean(resizeState || panState || dragState?.moved);
     resizeState = null;
     if (dragState?.moved && dragState.dropTargetId) {
       moveNodeToParent(dragState.nodeId, dragState.dropTargetId);
@@ -1351,14 +1380,19 @@ function renderCanvas() {
     }
     dragState = null;
     panState = null;
-    render();
+    if (shouldRender) {
+      render();
+    }
   };
 
   canvasEl.onpointerleave = () => {
+    const shouldRender = Boolean(resizeState || dragState?.moved || panState);
     resizeState = null;
     dragState = null;
     panState = null;
-    render();
+    if (shouldRender) {
+      render();
+    }
   };
 
   canvasEl.onwheel = (event) => {
@@ -1509,7 +1543,9 @@ async function start() {
     if (payload.type === "presence") {
       state.presence = payload.presence;
       renderPresence();
-      renderCanvas();
+      if (!state.editingNodeId) {
+        renderCanvas();
+      }
       return;
     }
     if (payload.type === "operation") {
