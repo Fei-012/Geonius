@@ -101,6 +101,16 @@ function cursorForResizeDirection(direction) {
   }
 }
 
+function getNodeDepth(document, nodeId) {
+  let depth = 0;
+  let current = document.nodes[nodeId];
+  while (current && current.parentId) {
+    depth += 1;
+    current = document.nodes[current.parentId];
+  }
+  return depth;
+}
+
 function autoGrowNodeCard(card, editor, node, persist = false) {
   const { height: currentHeight } = getNodeSize(node);
   const textAreaPadding = 24;
@@ -1019,6 +1029,13 @@ function renderCanvas() {
   const currentSelectedNode = selectedNode();
   const visibleNodes = Object.values(documentModel.nodes).filter((node) => isVisible(documentModel, node.id));
   const otherUsers = state.presence.filter((member) => member.socketId !== state.clientId && member.name !== state.user.name);
+  const maxWidthByDepth = {};
+
+  Object.values(documentModel.nodes).forEach((node) => {
+    const depth = getNodeDepth(documentModel, node.id);
+    const { width } = getNodeSize(node);
+    maxWidthByDepth[depth] = Math.max(maxWidthByDepth[depth] ?? 0, width);
+  });
 
   viewportEl.innerHTML = "";
   viewportEl.style.transform = `translate(${state.viewport.x}px, ${state.viewport.y}px) scale(${state.viewport.scale})`;
@@ -1034,13 +1051,14 @@ function renderCanvas() {
       if (!parent) {
         return;
       }
+      const childDepth = getNodeDepth(documentModel, node.id);
       const parentSize = getNodeSize(parent);
       const nodeSize = getNodeSize(node);
       const startX = parent.x + parentSize.width / 2;
       const endX = node.x - nodeSize.width / 2;
-      const elbowX = startX + Math.max(34, (endX - startX) * 0.42);
+      const trunkX = node.x - (maxWidthByDepth[childDepth] ?? nodeSize.width) / 2 - 26;
       const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      path.setAttribute("d", `M ${startX} ${parent.y} H ${elbowX} V ${node.y} H ${endX}`);
+      path.setAttribute("d", `M ${startX} ${parent.y} H ${trunkX} V ${node.y} H ${endX}`);
       path.setAttribute("stroke", "#6b7280");
       path.setAttribute("stroke-width", String(2.4 / state.viewport.scale));
       path.setAttribute("stroke-linecap", "round");
@@ -1065,13 +1083,16 @@ function renderCanvas() {
     card.style.minHeight = `${height}px`;
 
     const viewers = otherUsers.filter((member) => member.selectedNoteId === state.selectedNoteId && member.selectedNodeId === node.id);
+    const actionMode = state.selectedNodeId === node.id ? "add" : node.collapsed ? "expand" : "collapse";
+    const actionLabel = actionMode === "add" ? "+" : actionMode === "expand" ? "+" : "−";
+    const actionTitle = actionMode === "add" ? "Add branch" : actionMode === "expand" ? "Expand" : "Collapse";
 
     card.innerHTML = `
       <div class="node-row">
         <div class="node-presence">${viewers.map((member) => `<span class="node-user-dot" style="background:${member.color}"></span>`).join("")}</div>
       </div>
       <div class="node-actions">
-        <button class="node-action-button node-add-button" title="Add branch">+</button>
+        <button class="node-action-button node-add-button" title="${actionTitle}">${actionLabel}</button>
       </div>
       <textarea class="node-editor" rows="${node.id === rootId ? 1 : Math.max(1, Math.min(6, node.text.length / 18 + 1))}">${escapeHtml(node.text)}</textarea>
       ${node.image ? `<img class="node-image" src="${node.image}" alt="${escapeHtml(node.text)}" />` : ""}
@@ -1130,14 +1151,10 @@ function renderCanvas() {
         return;
       }
       event.stopPropagation();
-      if (state.selectedNodeId === node.id) {
-        state.focusEditorNodeId = node.id;
-        render();
-      } else {
-        state.selectedNodeId = node.id;
-        syncPresence();
-        render();
-      }
+      state.selectedNodeId = node.id;
+      state.focusEditorNodeId = node.id;
+      syncPresence();
+      render();
     };
 
     card.ondblclick = (event) => {
@@ -1215,19 +1232,18 @@ function renderCanvas() {
     const addButton = card.querySelector(".node-add-button");
     addButton.onpointerdown = (event) => {
       event.stopPropagation();
-      event.preventDefault();
       state.selectedNodeId = node.id;
-    };
-    addButton.onpointerup = (event) => {
-      event.stopPropagation();
-      event.preventDefault();
-      state.selectedNodeId = node.id;
-      syncPresence();
-      createChildNode(node.id);
     };
     addButton.onclick = (event) => {
       event.stopPropagation();
       event.preventDefault();
+      state.selectedNodeId = node.id;
+      syncPresence();
+      if (actionMode === "add") {
+        createChildNode(node.id);
+      } else {
+        toggleCollapse(node.id);
+      }
     };
 
     if (state.focusEditorNodeId === node.id) {

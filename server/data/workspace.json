@@ -1,7 +1,7 @@
 {
   "id": "shared-workspace",
   "title": "Geonius",
-  "version": 5723,
+  "version": 6043,
   "folders": [
     {
       "id": "3e3dc572-e5bf-4aea-884c-3ee3e4043180",
@@ -97,7 +97,7 @@
             "parentId": "30ce9c96-f863-4afb-b755-d2ad7290f136",
             "text": "An approach to resource management which views humans as 'caretakers' of the natural world ",
             "order": 0,
-            "x": 590,
+            "x": 737.5625840053764,
             "y": -288,
             "color": "#ffffff",
             "collapsed": false,
@@ -109,7 +109,7 @@
             "parentId": "9db3abb1-c53f-4da1-8c8d-c32796aa7d75",
             "text": "Population growth will eventually outstrip the natural resource base of the planet",
             "order": 0,
-            "x": 590,
+            "x": 737.5625840053764,
             "y": -144,
             "color": "#ffffff",
             "collapsed": false,
@@ -123,8 +123,8 @@
             "parentId": "9db3abb1-c53f-4da1-8c8d-c32796aa7d75",
             "text": "Rising wealth and consumption will hasten the time in which this happens",
             "order": 1,
-            "x": 674.6137152777778,
-            "y": 21.994357638888914,
+            "x": 737.5625840053764,
+            "y": 0,
             "color": "#ffffff",
             "collapsed": false,
             "createdAt": 1777224408428,
@@ -137,7 +137,7 @@
             "parentId": "node-17pphwai",
             "text": "",
             "order": 0,
-            "x": 840,
+            "x": 1135.1251680107528,
             "y": -288,
             "width": 220,
             "height": 72,
@@ -151,7 +151,7 @@
             "parentId": "node-zfd9nlbt",
             "text": "New idea",
             "order": 0,
-            "x": 840,
+            "x": 1135.1251680107528,
             "y": -144,
             "width": 220,
             "height": 72,
@@ -161,10 +161,10 @@
             "updatedAt": 1777226076360
           }
         },
-        "updatedAt": 1777226109206
+        "updatedAt": 1777227828556
       },
       "createdAt": 1777222721462,
-      "updatedAt": 1777226109206
+      "updatedAt": 1777227828556
     },
     "84a82920-4e84-41c3-9044-c1b1a13ce509": {
       "id": "84a82920-4e84-41c3-9044-c1b1a13ce509",
@@ -191,8 +191,8 @@
             "parentId": "root",
             "text": "Stewardship",
             "order": 0,
-            "x": 430,
-            "y": -304.7536892361112,
+            "x": 340,
+            "y": -215.80989583333334,
             "color": "#d1d5db",
             "collapsed": false,
             "createdAt": 1777223419595,
@@ -205,12 +205,12 @@
             "parentId": "root",
             "text": "Resource possibilities",
             "order": 1,
-            "x": 430,
-            "y": -72.00000000000003,
+            "x": 340,
+            "y": -72,
             "color": "#d1d5db",
-            "collapsed": false,
+            "collapsed": true,
             "createdAt": 1777223419595,
-            "updatedAt": 1777226822447,
+            "updatedAt": 1777227867540,
             "width": 220,
             "height": 71.61979166666667
           },
@@ -219,46 +219,50 @@
             "parentId": "155de7e0-b266-4c04-860d-af0020d2f3bd",
             "text": "Optimistic view",
             "order": 0,
-            "x": 750,
-            "y": -160.7536892361112,
+            "x": 913.9905598958337,
+            "y": -160.75368923611117,
             "color": "#ffffff",
             "collapsed": false,
             "createdAt": 1777223419595,
-            "updatedAt": 1777226299757
+            "updatedAt": 1777227081708,
+            "width": 507.3806423611112,
+            "height": 75.94965277777779
           },
           "9fe1e9a1-5675-447f-9d67-e94bc9ecf716": {
             "id": "9fe1e9a1-5675-447f-9d67-e94bc9ecf716",
             "parentId": "155de7e0-b266-4c04-860d-af0020d2f3bd",
             "text": "Balanced viewljsdlkjdslkfjlskdjlkfdjlskjdlkjsldkj",
             "order": 1,
-            "x": 761.0260416666666,
-            "y": -0.08333333333336057,
+            "x": 913.9905598958337,
+            "y": 1.9748263888888857,
             "color": "#ffffff",
             "collapsed": false,
             "createdAt": 1777223419595,
-            "updatedAt": 1777226965740,
+            "updatedAt": 1777227076772,
             "height": 56,
-            "width": 325.8996212121215
+            "width": 472.1778330176771
           },
           "node-z1gew0xz": {
             "id": "node-z1gew0xz",
             "parentId": "root",
             "text": "New idea",
             "order": 2,
-            "x": 430,
-            "y": 160.75368923611114,
+            "x": 340,
+            "y": 71.80989583333334,
             "color": "#d1d5db",
             "collapsed": false,
             "createdAt": 1777223821159,
-            "updatedAt": 1777226822447
+            "updatedAt": 1777227830591,
+            "width": 220,
+            "height": 72
           },
           "node-4luv0ho9": {
             "id": "node-4luv0ho9",
             "parentId": "root",
             "text": "New idea",
             "order": 3,
-            "x": 430,
-            "y": 304.75368923611114,
+            "x": 340,
+            "y": 215.80989583333334,
             "color": "#d1d5db",
             "collapsed": false,
             "createdAt": 1777223893426,
@@ -269,8 +273,8 @@
             "parentId": "9fe1e9a1-5675-447f-9d67-e94bc9ecf716",
             "text": "New idea",
             "order": 0,
-            "x": 1070,
-            "y": -2.842170943040401e-14,
+            "x": 1449.8037068169838,
+            "y": 1.9748263888888857,
             "width": 143.6451740506329,
             "height": 105.50737847222234,
             "color": "#ffffff",
@@ -283,21 +287,21 @@
             "parentId": "14d6f8e2-0b7b-45f2-ae91-e8de7b89c457",
             "text": "An approach to resource management which views humans as 'caretakers' of the natural world",
             "order": 0,
-            "x": 750,
-            "y": -304.7536892361112,
-            "width": 419.5930989583338,
-            "height": 58.723958333333336,
+            "x": 913.9905598958337,
+            "y": -215.80989583333334,
+            "width": 687.9811197916673,
+            "height": 56,
             "color": "#ffffff",
             "collapsed": false,
             "createdAt": 1777225410384,
-            "updatedAt": 1777226945568
+            "updatedAt": 1777227881068
           }
         },
-        "updatedAt": 1777226965740
+        "updatedAt": 1777229705436
       },
       "createdAt": 1777223419596,
-      "updatedAt": 1777226965740
+      "updatedAt": 1777229705436
     }
   },
-  "updatedAt": 1777226965740
+  "updatedAt": 1777229705436
 }
