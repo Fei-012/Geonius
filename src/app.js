@@ -1,6 +1,7 @@
 const palette = ["#111827", "#d1d5db", "#f3f4f6", "#e5e7eb", "#cbd5e1", "#ddd6fe"];
 const rootId = "root";
 const localWorkspaceKey = "geonius-personal-workspace";
+const localViewModeKey = "geonius-view-mode";
 
 const state = {
   workspace: null,
@@ -12,6 +13,7 @@ const state = {
   selectAllOnFocus: false,
   personalMode: true,
   hoveredConnectorNodeId: null,
+  viewMode: localStorage.getItem(localViewModeKey) || "mindmap",
   sidebarCollapsed: false,
   expandedFolders: {},
   search: "",
@@ -1044,6 +1046,115 @@ function screenToCanvas(clientX, clientY) {
   };
 }
 
+function flattenDocumentForNotes(document, nodeId = rootId, depth = 0, rows = []) {
+  const node = document.nodes[nodeId];
+  if (!node) {
+    return rows;
+  }
+
+  rows.push({ node, depth });
+  getChildren(document, nodeId).forEach((child) => flattenDocumentForNotes(document, child.id, depth + 1, rows));
+  return rows;
+}
+
+function renderNoteMode() {
+  const note = currentNote();
+  const documentModel = currentDocument();
+  if (!note || !documentModel) {
+    return;
+  }
+
+  const outlineEl = document.getElementById("note-mode-surface");
+  if (!outlineEl) {
+    return;
+  }
+
+  outlineEl.innerHTML = "";
+  const rows = flattenDocumentForNotes(documentModel);
+
+  rows.forEach(({ node, depth }) => {
+    const row = document.createElement("div");
+    row.className = `note-outline-row ${state.selectedNodeId === node.id ? "selected" : ""}`;
+    row.style.setProperty("--note-depth", String(depth));
+
+    row.innerHTML = `
+      <div class="note-bullet">•</div>
+      <textarea class="note-outline-editor" rows="1">${escapeHtml(node.text)}</textarea>
+      ${node.image ? `<img class="note-outline-image" src="${node.image}" alt="${escapeHtml(node.text)}" />` : ""}
+    `;
+
+    const editor = row.querySelector(".note-outline-editor");
+    const grow = () => {
+      editor.style.height = "0px";
+      editor.style.height = `${Math.max(24, editor.scrollHeight)}px`;
+    };
+
+    row.onpointerdown = (event) => {
+      if (!event.target.closest(".note-outline-editor")) {
+        state.selectedNodeId = node.id;
+        state.editingNodeId = null;
+        renderNoteMode();
+      }
+    };
+
+    editor.onfocus = () => {
+      state.selectedNodeId = node.id;
+      state.editingNodeId = node.id;
+    };
+
+    editor.oninput = (event) => {
+      const value = event.target.value;
+      grow();
+      if (node.id === rootId) {
+        commitOperation({ type: "note/update", noteId: state.selectedNoteId, changes: { title: value } }, { render: false });
+        commitOperation({ type: "node/update", noteId: state.selectedNoteId, nodeId: rootId, changes: { text: value } }, { render: false });
+      } else {
+        commitOperation({ type: "node/update", noteId: state.selectedNoteId, nodeId: node.id, changes: { text: value } }, { render: false });
+      }
+    };
+
+    editor.onkeydown = (event) => {
+      if (event.key === "Tab" && event.shiftKey) {
+        event.preventDefault();
+        state.focusEditorNodeId = node.id;
+        outdentNode(node.id);
+      } else if (event.key === "Tab") {
+        event.preventDefault();
+        state.focusEditorNodeId = node.id;
+        indentNode(node.id);
+      } else if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault();
+        if (node.id === rootId) {
+          createChildNode(node.id);
+        } else {
+          createSiblingNode(node.id);
+        }
+      }
+    };
+
+    editor.onblur = () => {
+      state.editingNodeId = null;
+      commitOperation({ type: "nodes/arrange", noteId: state.selectedNoteId, focusNodeId: rootId });
+    };
+
+    outlineEl.appendChild(row);
+    requestAnimationFrame(grow);
+  });
+
+  if (state.focusEditorNodeId) {
+    const targetRow = Array.from(outlineEl.querySelectorAll(".note-outline-row")).find((row) => row.classList.contains("selected"));
+    const targetEditor = targetRow?.querySelector(".note-outline-editor");
+    if (targetEditor) {
+      requestAnimationFrame(() => {
+        targetEditor.focus();
+        const length = targetEditor.value.length;
+        targetEditor.setSelectionRange(length, length);
+      });
+    }
+    state.focusEditorNodeId = null;
+  }
+}
+
 function renderSidebar() {
   return `
     <div class="sidebar-rail">
@@ -1078,16 +1189,13 @@ function renderMainShell(note, folder) {
           <input class="note-title-input" id="note-title-input" value="${escapeHtml(note.title)}" />
         </div>
         <div class="topbar-right">
-          <span class="mode-pill active">Mind Map</span>
-          <button class="ghost-pill" disabled>Note Mode Later</button>
+          <button class="mode-pill ${state.viewMode === "mindmap" ? "active" : ""}" id="mindmap-mode">Mind Map</button>
+          <button class="mode-pill ${state.viewMode === "note" ? "active" : ""}" id="note-mode">Note Mode</button>
           <div class="avatar-stack" id="avatar-stack"></div>
         </div>
       </header>
       <section class="canvas-frame">
-        <div class="canvas" id="canvas">
-          <svg class="connections" id="connections"></svg>
-          <div class="canvas-viewport" id="canvas-viewport"></div>
-        </div>
+        ${state.viewMode === "mindmap" ? `<div class="canvas" id="canvas"><svg class="connections" id="connections"></svg><div class="canvas-viewport" id="canvas-viewport"></div></div>` : `<div class="note-mode-surface" id="note-mode-surface"></div>`}
       </section>
     </main>
   `;
@@ -1667,6 +1775,16 @@ function render() {
   };
   document.getElementById("create-folder-rail").onclick = createFolder;
   document.getElementById("create-folder").onclick = createFolder;
+  document.getElementById("mindmap-mode").onclick = () => {
+    state.viewMode = "mindmap";
+    localStorage.setItem(localViewModeKey, state.viewMode);
+    render();
+  };
+  document.getElementById("note-mode").onclick = () => {
+    state.viewMode = "note";
+    localStorage.setItem(localViewModeKey, state.viewMode);
+    render();
+  };
   document.getElementById("search-input").oninput = (event) => {
     state.search = event.target.value;
     renderFolderTree();
@@ -1676,7 +1794,11 @@ function render() {
   if (!state.personalMode) {
     renderPresence();
   }
-  renderCanvas();
+  if (state.viewMode === "note") {
+    renderNoteMode();
+  } else {
+    renderCanvas();
+  }
 }
 
 function escapeHtml(value) {

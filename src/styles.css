@@ -526,3 +526,49 @@ button {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+.note-mode-surface {
+  height: calc(100vh - 70px);
+  overflow: auto;
+  padding: 28px 40px 80px;
+  background: #fffdf9;
+}
+
+.note-outline-row {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  padding: 4px 0 4px calc(var(--note-depth) * 28px);
+  border-radius: 10px;
+}
+
+.note-outline-row.selected {
+  background: rgba(17, 24, 39, 0.04);
+}
+
+.note-bullet {
+  line-height: 1.6;
+  color: #57534e;
+  text-align: center;
+}
+
+.note-outline-editor {
+  width: 100%;
+  min-height: 24px;
+  resize: none;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: #111827;
+  line-height: 1.5;
+  overflow: hidden;
+  padding: 0;
+}
+
+.note-outline-image {
+  width: min(420px, 100%);
+  border-radius: 12px;
+  margin-top: 8px;
+  display: block;
+}
