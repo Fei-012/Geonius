@@ -1,7 +1,7 @@
 {
   "id": "shared-workspace",
   "title": "Geonius",
-  "version": 6277,
+  "version": 6461,
   "folders": [
     {
       "id": "4a9cb88d-9638-40c4-b701-2e3084f841e1",
@@ -32,7 +32,7 @@
             "color": "#111111",
             "collapsed": false,
             "createdAt": 1777223419595,
-            "updatedAt": 1777232702496
+            "updatedAt": 1777241746403
           },
           "14d6f8e2-0b7b-45f2-ae91-e8de7b89c457": {
             "id": "14d6f8e2-0b7b-45f2-ae91-e8de7b89c457",
@@ -40,11 +40,11 @@
             "text": "Stewardship",
             "order": 0,
             "x": 340,
-            "y": -447.80989583333337,
+            "y": -418.8561751994681,
             "color": "#d1d5db",
             "collapsed": false,
             "createdAt": 1777223419595,
-            "updatedAt": 1777232696463,
+            "updatedAt": 1777241796469,
             "width": 220,
             "height": 72
           },
@@ -54,11 +54,11 @@
             "text": "Resource possibilities",
             "order": 1,
             "x": 340,
-            "y": -304.00000000000006,
+            "y": -184.12765957446805,
             "color": "#d1d5db",
-            "collapsed": true,
+            "collapsed": false,
             "createdAt": 1777223419595,
-            "updatedAt": 1777232696463,
+            "updatedAt": 1777241796469,
             "width": 220,
             "height": 71.61979166666667
           },
@@ -68,7 +68,7 @@
             "text": "Optimistic view",
             "order": 0,
             "x": 913.9905598958337,
-            "y": -392.7536892361112,
+            "y": -272.8813488105792,
             "color": "#ffffff",
             "collapsed": false,
             "createdAt": 1777223419595,
@@ -82,7 +82,7 @@
             "text": "Balanced viewljsdlkjdslkfjlskdjlkfdjlskjdlkjsldkj",
             "order": 1,
             "x": 913.9905598958337,
-            "y": -230.02517361111117,
+            "y": -110.15283318557917,
             "color": "#ffffff",
             "collapsed": false,
             "createdAt": 1777223419595,
@@ -96,11 +96,11 @@
             "text": "New idea",
             "order": 2,
             "x": 340,
-            "y": -0.19010416666668561,
+            "y": 162.72851562500009,
             "color": "#d1d5db",
             "collapsed": false,
             "createdAt": 1777223821159,
-            "updatedAt": 1777232696463,
+            "updatedAt": 1777241796469,
             "width": 220,
             "height": 72
           },
@@ -110,11 +110,11 @@
             "text": "New idea",
             "order": 3,
             "x": 340,
-            "y": 303.8098958333333,
+            "y": 418.85617519946817,
             "color": "#d1d5db",
             "collapsed": false,
             "createdAt": 1777223893426,
-            "updatedAt": 1777232696463
+            "updatedAt": 1777241796469
           },
           "node-ycp613q3": {
             "id": "node-ycp613q3",
@@ -122,7 +122,7 @@
             "text": "New idea",
             "order": 0,
             "x": 1449.8037068169838,
-            "y": -230.02517361111117,
+            "y": -110.15283318557917,
             "width": 143.6451740506329,
             "height": 105.50737847222234,
             "color": "#ffffff",
@@ -136,7 +136,7 @@
             "text": "An approach to resource management which views humans as 'caretakers' of the natural world",
             "order": 0,
             "x": 913.9905598958337,
-            "y": -447.80989583333337,
+            "y": -418.8561751994681,
             "width": 687.9811197916673,
             "height": 56,
             "color": "#ffffff",
@@ -150,13 +150,13 @@
             "text": "New idea kjadhkhhsaklfhdklsjdhfklsajhdkslajdfklsahjdfkjshfdkjhsakldjfhskljdhfkjshfdkjhsdkjhfklsdjhfklsjhadkjhsfkjdhsakjhfdkjsadfkljhfsakdjflhskjdhfksjahfdksjhfdkjhsklfdjhsakjdlhfksjafhdklsajhfdklsja",
             "order": 0,
             "x": 913.9905598958337,
-            "y": -72.19010416666669,
-            "width": 220,
-            "height": 248,
+            "y": 90.72851562500009,
+            "width": 313.6170212765957,
+            "height": 152.25531914893617,
             "color": "#ffffff",
             "collapsed": false,
             "createdAt": 1777232640755,
-            "updatedAt": 1777232673642
+            "updatedAt": 1777237674440
           },
           "node-wi9yczqf": {
             "id": "node-wi9yczqf",
@@ -164,34 +164,20 @@
             "text": "New idea",
             "order": 1,
             "x": 913.9905598958337,
-            "y": 159.80989583333331,
+            "y": 274.85617519946817,
             "width": 220,
             "height": 72,
             "color": "#ffffff",
             "collapsed": false,
             "createdAt": 1777232655822,
             "updatedAt": 1777232655829
-          },
-          "node-hoi09wj1": {
-            "id": "node-hoi09wj1",
-            "parentId": "root",
-            "text": "New idea",
-            "order": 4,
-            "x": 340,
-            "y": 447.8098958333333,
-            "width": 220,
-            "height": 72,
-            "color": "#d1d5db",
-            "collapsed": false,
-            "createdAt": 1777232696456,
-            "updatedAt": 1777232696463
           }
         },
-        "updatedAt": 1777232716005
+        "updatedAt": 1777241796469
       },
       "createdAt": 1777223419596,
-      "updatedAt": 1777232716005
+      "updatedAt": 1777241796469
     }
   },
-  "updatedAt": 1777232716005
+  "updatedAt": 1777241796469
 }
