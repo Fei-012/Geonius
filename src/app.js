@@ -1077,9 +1077,11 @@ function renderNoteMode() {
     row.className = `note-outline-row ${state.selectedNodeId === node.id ? "selected" : ""}`;
     row.style.setProperty("--note-depth", String(depth));
 
+    const isEditing = state.editingNodeId === node.id;
+
     row.innerHTML = `
       <div class="note-bullet">•</div>
-      <textarea class="note-outline-editor" rows="1">${escapeHtml(node.text)}</textarea>
+      <textarea class="note-outline-editor" ${isEditing ? "" : "readonly"} rows="1">${escapeHtml(node.text)}</textarea>
       ${node.image ? `<img class="note-outline-image" src="${node.image}" alt="${escapeHtml(node.text)}" />` : ""}
     `;
 
@@ -1090,14 +1092,46 @@ function renderNoteMode() {
     };
 
     row.onpointerdown = (event) => {
-      if (!event.target.closest(".note-outline-editor")) {
+      if (!event.target.closest(".note-outline-editor") || !isEditing) {
         state.selectedNodeId = node.id;
         state.editingNodeId = null;
         renderNoteMode();
       }
     };
 
+    editor.onpointerdown = (event) => {
+      if (!isEditing) {
+        event.preventDefault();
+      }
+      event.stopPropagation();
+    };
+
+    editor.onclick = (event) => {
+      event.stopPropagation();
+      if (!isEditing) {
+        event.preventDefault();
+        if (state.selectedNodeId === node.id) {
+          beginEditingNode(node.id, false);
+        } else {
+          state.selectedNodeId = node.id;
+          state.editingNodeId = null;
+          renderNoteMode();
+        }
+      }
+    };
+
+    editor.ondblclick = (event) => {
+      event.stopPropagation();
+      if (!isEditing) {
+        beginEditingNode(node.id, true);
+      }
+    };
+
     editor.onfocus = () => {
+      if (!isEditing && state.editingNodeId !== node.id) {
+        editor.blur();
+        return;
+      }
       state.selectedNodeId = node.id;
       state.editingNodeId = node.id;
     };
@@ -1385,6 +1419,7 @@ function renderCanvas() {
     card.style.borderColor = node.color || "#111827";
     card.style.width = `${width}px`;
     card.style.minHeight = `${height}px`;
+    const isEditing = state.editingNodeId === node.id;
     const actionMode = node.collapsed ? "expand" : isSelected ? "add" : hasChildren ? "collapse" : "add";
     const actionLabel = actionMode === "collapse" ? "−" : actionMode === "expand" && hiddenCount > 0 ? String(hiddenCount) : "+";
     const actionTitle = actionMode === "add" ? "Add branch" : actionMode === "expand" ? `Expand ${hiddenCount} hidden ${hiddenCount === 1 ? "node" : "nodes"}` : "Collapse";
@@ -1396,7 +1431,7 @@ function renderCanvas() {
       <div class="node-actions">
         <button class="node-action-button node-add-button" title="${actionTitle}">${actionLabel}</button>
       </div>
-      <textarea class="node-editor" rows="${node.id === rootId ? 1 : Math.max(1, Math.min(6, node.text.length / 18 + 1))}">${escapeHtml(node.text)}</textarea>
+      <textarea class="node-editor" ${isEditing ? "" : "readonly"} rows="${node.id === rootId ? 1 : Math.max(1, Math.min(6, node.text.length / 18 + 1))}">${escapeHtml(node.text)}</textarea>
       ${node.image ? `<img class="node-image" src="${node.image}" alt="${escapeHtml(node.text)}" />` : ""}
     `;
 
@@ -1478,17 +1513,39 @@ function renderCanvas() {
 
     const editor = card.querySelector(".node-editor");
     editor.onpointerdown = (event) => {
+      if (!isEditing) {
+        event.preventDefault();
+      }
       event.stopPropagation();
     };
     editor.onclick = (event) => {
+      if (!isEditing) {
+        event.preventDefault();
+        if (state.selectedNodeId === node.id) {
+          beginEditingNode(node.id, false);
+          return;
+        }
+        state.selectedNodeId = node.id;
+        state.editingNodeId = null;
+        syncPresence();
+        render();
+        return;
+      }
       event.stopPropagation();
     };
     editor.ondblclick = (event) => {
       event.stopPropagation();
+      if (!isEditing) {
+        beginEditingNode(node.id, true);
+      }
     };
     editor.onfocus = () => {
+      if (!isEditing && state.editingNodeId !== node.id) {
+        editor.blur();
+        return;
+      }
       state.selectedNodeId = node.id;
-       state.editingNodeId = node.id;
+      state.editingNodeId = node.id;
       syncPresence();
     };
     editor.oninput = (event) => {
