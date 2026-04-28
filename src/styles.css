@@ -572,3 +572,8 @@ button {
   margin-top: 8px;
   display: block;
 }
+
+.node-editor[readonly],
+.note-outline-editor[readonly] {
+  pointer-events: none;
+}

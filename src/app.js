@@ -1092,7 +1092,21 @@ function renderNoteMode() {
     };
 
     row.onpointerdown = (event) => {
+      if (!isEditing) {
+        event.preventDefault();
+      }
       if (!event.target.closest(".note-outline-editor") || !isEditing) {
+        state.selectedNodeId = node.id;
+        state.editingNodeId = null;
+        renderNoteMode();
+      }
+    };
+
+    row.onclick = (event) => {
+      event.stopPropagation();
+      if (state.selectedNodeId === node.id) {
+        beginEditingNode(node.id, false);
+      } else {
         state.selectedNodeId = node.id;
         state.editingNodeId = null;
         renderNoteMode();
