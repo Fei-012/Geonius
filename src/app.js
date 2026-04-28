@@ -725,10 +725,27 @@ async function postJson(url, payload) {
   });
 }
 
+function ensureWorkspaceNotEmpty() {
+  if (!state.workspace) {
+    return;
+  }
+
+  const hasNotes = Object.keys(state.workspace.notes || {}).length > 0;
+  const hasFolders = (state.workspace.folders || []).length > 0;
+  if (hasNotes && hasFolders) {
+    return;
+  }
+
+  state.workspace = normalizeWorkspaceAppearance(createLocalInitialWorkspace());
+  savePersonalWorkspace(state.workspace);
+}
+
 function ensureValidSelection() {
   if (!state.workspace) {
     return;
   }
+
+  ensureWorkspaceNotEmpty();
 
   if (!state.workspace.notes[state.selectedNoteId]) {
     const fallbackNoteId =
@@ -1941,6 +1958,7 @@ async function start() {
     state.workspace = normalizeWorkspaceAppearance(createLocalInitialWorkspace());
     savePersonalWorkspace(state.workspace);
   }
+  ensureWorkspaceNotEmpty();
   state.presence = [];
   savePersonalWorkspace(state.workspace);
 
