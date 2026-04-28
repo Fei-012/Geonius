@@ -52,7 +52,7 @@ function createNode(partial) {
     x: partial.x ?? 0,
     y: partial.y ?? 0,
     width: partial.width ?? 320,
-    height: partial.height ?? (partial.image ? 220 : 72),
+    height: partial.height ?? (partial.image ? 220 : 60),
     color: partial.color ?? "#111827",
     collapsed: partial.collapsed ?? false,
     image: partial.image,
@@ -64,7 +64,7 @@ function createNode(partial) {
 function getNodeSize(node) {
   return {
     width: node.width ?? 320,
-    height: node.height ?? (node.image ? 220 : 72)
+    height: node.height ?? (node.image ? 220 : 60)
   };
 }
 
@@ -257,6 +257,19 @@ function getSiblingIds(document, parentId) {
   return getChildren(document, parentId).map((node) => node.id);
 }
 
+function countDescendants(document, nodeId) {
+  let total = 0;
+  const stack = [nodeId];
+  while (stack.length > 0) {
+    const current = stack.pop();
+    getChildren(document, current).forEach((child) => {
+      total += 1;
+      stack.push(child.id);
+    });
+  }
+  return total;
+}
+
 function isVisible(document, nodeId) {
   let current = document.nodes[nodeId];
   while (current && current.parentId) {
@@ -331,7 +344,7 @@ function applyWorkspaceOperationLocally(workspace, operation) {
       if (!node) {
         return 72;
       }
-      return Math.max(56, node.height ?? (node.image ? 220 : 72));
+      return Math.max(48, node.height ?? (node.image ? 220 : 60));
     }
 
     function branchHeight(nodeId) {
@@ -780,7 +793,8 @@ function createChildNode(parentId) {
     parentId,
     text: "New idea",
     order: siblings.length,
-    color: parentId === rootId ? "#d1d5db" : "#ffffff"
+    color: parentId === rootId ? "#d1d5db" : "#ffffff",
+    height: 60
   });
   state.selectedNodeId = node.id;
   state.focusEditorNodeId = node.id;
@@ -802,7 +816,7 @@ function createImageNode(parentId, image) {
     order: siblings.length,
     color: parentId === rootId ? "#d1d5db" : "#ffffff",
     width: 280,
-    height: 240,
+    height: 220,
     image
   });
   state.selectedNodeId = node.id;
@@ -829,7 +843,8 @@ function createSiblingNode(nodeId) {
     parentId: current.parentId,
     text: "New sibling",
     order: currentIndex + 1,
-    color: current.color
+    color: current.color,
+    height: 60
   });
   state.selectedNodeId = newId;
   state.focusEditorNodeId = newId;
@@ -1218,20 +1233,20 @@ function renderCanvas() {
       dragState?.nodeId !== node.id &&
       dragState?.dropTargetId === node.id;
     const connectorHovered = state.hoveredConnectorNodeId === node.id;
+    const viewers = otherUsers.filter((member) => member.selectedNoteId === state.selectedNoteId && member.selectedNodeId === node.id);
+    const hasChildren = getChildren(documentModel, node.id).length > 0;
+    const hiddenCount = node.collapsed ? countDescendants(documentModel, node.id) : 0;
+    const isSelected = state.selectedNodeId === node.id;
     const card = document.createElement("article");
-    card.className = `map-node ${state.selectedNodeId === node.id ? "selected" : ""} ${node.id === rootId ? "root-node" : ""} ${isDropTarget ? "drop-target" : ""} ${connectorHovered ? "connector-hover" : ""}`;
+    card.className = `map-node ${state.selectedNodeId === node.id ? "selected" : ""} ${node.id === rootId ? "root-node" : ""} ${isDropTarget ? "drop-target" : ""} ${connectorHovered ? "connector-hover" : ""} ${node.collapsed && hiddenCount > 0 ? "collapsed-node" : ""}`;
     card.style.left = `${node.x}px`;
     card.style.top = `${node.y}px`;
     card.style.borderColor = node.color || "#111827";
     card.style.width = `${width}px`;
     card.style.minHeight = `${height}px`;
-
-    const viewers = otherUsers.filter((member) => member.selectedNoteId === state.selectedNoteId && member.selectedNodeId === node.id);
-    const hasChildren = getChildren(documentModel, node.id).length > 0;
-    const isSelected = state.selectedNodeId === node.id;
-    const actionMode = isSelected ? "add" : hasChildren ? (node.collapsed ? "expand" : "collapse") : "add";
-    const actionLabel = actionMode === "collapse" ? "−" : "+";
-    const actionTitle = actionMode === "add" ? "Add branch" : actionMode === "expand" ? "Expand" : "Collapse";
+    const actionMode = node.collapsed ? "expand" : isSelected ? "add" : hasChildren ? "collapse" : "add";
+    const actionLabel = actionMode === "collapse" ? "−" : actionMode === "expand" && hiddenCount > 0 ? String(hiddenCount) : "+";
+    const actionTitle = actionMode === "add" ? "Add branch" : actionMode === "expand" ? `Expand ${hiddenCount} hidden ${hiddenCount === 1 ? "node" : "nodes"}` : "Collapse";
 
     card.innerHTML = `
       <div class="node-row">
@@ -1270,6 +1285,8 @@ function renderCanvas() {
         nodeId: node.id,
         startX: event.clientX,
         startY: event.clientY,
+        pointerX: event.clientX,
+        pointerY: event.clientY,
         wasSelected: state.selectedNodeId === node.id,
         moved: false,
         dropTargetId: null
@@ -1279,6 +1296,11 @@ function renderCanvas() {
     card.onpointermove = (event) => {
       const direction = getResizeDirection(event, card);
       card.style.cursor = cursorForResizeDirection(direction) || "";
+
+      if (dragState && dragState.nodeId === node.id) {
+        dragState.pointerX = event.clientX;
+        dragState.pointerY = event.clientY;
+      }
 
       if (
         dragState &&
@@ -1419,6 +1441,28 @@ function renderCanvas() {
     viewportEl.appendChild(card);
   });
 
+  if (dragState?.moved && dragState.dropTargetId) {
+    const target = documentModel.nodes[dragState.dropTargetId];
+    const dragged = documentModel.nodes[dragState.nodeId];
+    if (target && dragged) {
+      const targetSize = getNodeSize(target);
+      const previewStartX = target.x + targetSize.width / 2;
+      const previewStartY = target.y;
+      const previewEnd = screenToCanvas(dragState.pointerX, dragState.pointerY);
+      const previewMidX = previewEnd.x - 36;
+      const preview = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      preview.setAttribute("d", `M ${previewStartX} ${previewStartY} H ${previewMidX} V ${previewEnd.y} H ${previewEnd.x}`);
+      preview.setAttribute("stroke", "#2563eb");
+      preview.setAttribute("stroke-width", String(2.2 / state.viewport.scale));
+      preview.setAttribute("stroke-dasharray", String(8 / state.viewport.scale) + " " + String(6 / state.viewport.scale));
+      preview.setAttribute("stroke-linecap", "round");
+      preview.setAttribute("stroke-linejoin", "round");
+      preview.setAttribute("fill", "none");
+      preview.setAttribute("opacity", "0.8");
+      group.appendChild(preview);
+    }
+  }
+
   document.getElementById("note-title-input").oninput = (event) => {
     const title = event.target.value;
     commitOperation({ type: "note/update", noteId: state.selectedNoteId, changes: { title } }, { render: false });
@@ -1473,6 +1517,8 @@ function renderCanvas() {
     }
 
     if (dragState) {
+      dragState.pointerX = event.clientX;
+      dragState.pointerY = event.clientY;
       if (
         !dragState.moved &&
         (Math.abs(event.clientX - dragState.startX) > 4 || Math.abs(event.clientY - dragState.startY) > 4)
@@ -1520,7 +1566,7 @@ function renderCanvas() {
   canvasEl.onwheel = (event) => {
     if (event.ctrlKey || event.metaKey) {
       event.preventDefault();
-      const delta = event.deltaY > 0 ? -0.07 : 0.07;
+      const delta = event.deltaY > 0 ? -0.035 : 0.035;
       state.viewport.scale = Math.max(0.4, Math.min(2, state.viewport.scale + delta));
       render();
       return;
