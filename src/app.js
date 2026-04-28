@@ -1,5 +1,6 @@
 const palette = ["#111827", "#d1d5db", "#f3f4f6", "#e5e7eb", "#cbd5e1", "#ddd6fe"];
 const rootId = "root";
+const localWorkspaceKey = "geonius-personal-workspace";
 
 const state = {
   workspace: null,
@@ -9,6 +10,8 @@ const state = {
   focusEditorNodeId: null,
   editingNodeId: null,
   selectAllOnFocus: false,
+  personalMode: true,
+  hoveredConnectorNodeId: null,
   sidebarCollapsed: false,
   expandedFolders: {},
   search: "",
@@ -48,7 +51,7 @@ function createNode(partial) {
     order: partial.order ?? 0,
     x: partial.x ?? 0,
     y: partial.y ?? 0,
-    width: partial.width ?? 220,
+    width: partial.width ?? 320,
     height: partial.height ?? (partial.image ? 220 : 72),
     color: partial.color ?? "#111827",
     collapsed: partial.collapsed ?? false,
@@ -60,9 +63,96 @@ function createNode(partial) {
 
 function getNodeSize(node) {
   return {
-    width: node.width ?? 220,
+    width: node.width ?? 320,
     height: node.height ?? (node.image ? 220 : 72)
   };
+}
+
+function createLocalInitialWorkspace() {
+  const stamp = Date.now();
+  const folderId = uid("folder");
+  const noteId = uid("note");
+  const rootNode = createNode({ id: rootId, text: "My Mind Map", color: "#111111", width: 360 });
+  const branchOne = createNode({
+    id: uid("node"),
+    parentId: rootId,
+    text: "First branch with more horizontal room for longer text",
+    order: 0,
+    color: "#d1d5db",
+    width: 380
+  });
+  const branchTwo = createNode({
+    id: uid("node"),
+    parentId: rootId,
+    text: "Second branch with more horizontal room for longer text",
+    order: 1,
+    color: "#d1d5db",
+    width: 380
+  });
+  const branchThree = createNode({
+    id: uid("node"),
+    parentId: rootId,
+    text: "Third branch with more horizontal room for longer text",
+    order: 2,
+    color: "#d1d5db",
+    width: 380
+  });
+
+  const workspace = {
+    id: "personal-workspace",
+    title: "Geonius",
+    version: 1,
+    folders: [
+      {
+        id: folderId,
+        name: "My documents",
+        noteIds: [noteId],
+        createdAt: stamp,
+        updatedAt: stamp
+      }
+    ],
+    notes: {
+      [noteId]: {
+        id: noteId,
+        folderId,
+        title: "My Mind Map",
+        document: {
+          id: uid("doc"),
+          title: "My Mind Map",
+          nodes: {
+            [rootId]: rootNode,
+            [branchOne.id]: branchOne,
+            [branchTwo.id]: branchTwo,
+            [branchThree.id]: branchThree
+          },
+          updatedAt: stamp
+        },
+        createdAt: stamp,
+        updatedAt: stamp
+      }
+    },
+    updatedAt: stamp
+  };
+
+  return applyWorkspaceOperationLocally(workspace, { type: "nodes/arrange", noteId, focusNodeId: rootId });
+}
+
+function loadPersonalWorkspace() {
+  try {
+    const raw = localStorage.getItem(localWorkspaceKey);
+    return raw ? JSON.parse(raw) : null;
+  } catch (error) {
+    console.error(error);
+    return null;
+  }
+}
+
+function savePersonalWorkspace(workspace) {
+  try {
+    localStorage.setItem(localWorkspaceKey, JSON.stringify(workspace));
+  } catch (error) {
+    console.error(error);
+  }
 }
 
 function getResizeDirection(event, element) {
@@ -225,13 +315,13 @@ function applyWorkspaceOperationLocally(workspace, operation) {
 
     const nodes = { ...document.nodes };
     nodes[rootId] = { ...nodes[rootId], x: 0, y: 0 };
-    const columnGapX = 120;
+    const columnGapX = 92;
     const siblingGapY = 72;
 
     function nodeBoxWidth(nodeId) {
       const node = nodes[nodeId];
       if (!node) {
-        return 220;
+        return 320;
       }
       return Math.max(120, node.width ?? 220);
     }
@@ -282,8 +372,8 @@ function applyWorkspaceOperationLocally(workspace, operation) {
 
     const columnCenterXByDepth = { 0: 0 };
     for (let depth = 1; depth <= maxDepth; depth += 1) {
-      const previousWidth = maxWidthByDepth[depth - 1] ?? 220;
-      const currentWidth = maxWidthByDepth[depth] ?? 220;
+      const previousWidth = maxWidthByDepth[depth - 1] ?? 320;
+      const currentWidth = maxWidthByDepth[depth] ?? 320;
       columnCenterXByDepth[depth] =
         columnCenterXByDepth[depth - 1] + previousWidth / 2 + currentWidth / 2 + columnGapX;
     }
@@ -577,6 +667,9 @@ function applyWorkspaceOperationLocally(workspace, operation) {
 }
 
 async function postJson(url, payload) {
+  if (state.personalMode) {
+    return;
+  }
   await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -602,11 +695,14 @@ function ensureValidSelection() {
 function commitOperation(operation, options = {}) {
   const shouldRender = options.render !== false;
   state.workspace = applyWorkspaceOperationLocally(state.workspace, operation);
+  savePersonalWorkspace(state.workspace);
   ensureValidSelection();
   if (shouldRender) {
     render();
   }
-  postJson("/operation", { clientId: state.clientId, operation }).catch(console.error);
+  if (!state.personalMode) {
+    postJson("/operation", { clientId: state.clientId, operation }).catch(console.error);
+  }
 }
 
 function beginEditingNode(nodeId, selectAll = false) {
@@ -619,6 +715,9 @@ function beginEditingNode(nodeId, selectAll = false) {
 }
 
 function syncPresence() {
+  if (state.personalMode) {
+    return;
+  }
   postJson("/presence", {
     clientId: state.clientId,
     name: state.user.name,
@@ -1078,7 +1177,7 @@ function renderCanvas() {
       const nodeSize = getNodeSize(node);
       const startX = parent.x + parentSize.width / 2;
       const endX = node.x - nodeSize.width / 2;
-      const trunkX = node.x - (maxWidthByDepth[childDepth] ?? nodeSize.width) / 2 - 26;
+      const trunkX = node.x - (maxWidthByDepth[childDepth] ?? nodeSize.width) / 2 - 16;
       const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
       path.setAttribute("d", `M ${startX} ${parent.y} H ${trunkX} V ${node.y} H ${endX}`);
       path.setAttribute("stroke", "#6b7280");
@@ -1088,6 +1187,28 @@ function renderCanvas() {
       path.setAttribute("opacity", "0.72");
       path.setAttribute("fill", "none");
       group.appendChild(path);
+
+      const hitPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      hitPath.setAttribute("d", `M ${startX} ${parent.y} H ${trunkX} V ${node.y} H ${endX}`);
+      hitPath.setAttribute("stroke", "transparent");
+      hitPath.setAttribute("stroke-width", String(18 / state.viewport.scale));
+      hitPath.setAttribute("stroke-linecap", "round");
+      hitPath.setAttribute("stroke-linejoin", "round");
+      hitPath.setAttribute("fill", "none");
+      hitPath.style.pointerEvents = "stroke";
+      hitPath.onpointerenter = () => {
+        if (state.hoveredConnectorNodeId !== node.id) {
+          state.hoveredConnectorNodeId = node.id;
+          renderCanvas();
+        }
+      };
+      hitPath.onpointerleave = () => {
+        if (state.hoveredConnectorNodeId === node.id) {
+          state.hoveredConnectorNodeId = null;
+          renderCanvas();
+        }
+      };
+      group.appendChild(hitPath);
     });
 
   visibleNodes.forEach((node) => {
@@ -1096,8 +1217,9 @@ function renderCanvas() {
       dragState?.moved &&
       dragState?.nodeId !== node.id &&
       dragState?.dropTargetId === node.id;
+    const connectorHovered = state.hoveredConnectorNodeId === node.id;
     const card = document.createElement("article");
-    card.className = `map-node ${state.selectedNodeId === node.id ? "selected" : ""} ${node.id === rootId ? "root-node" : ""} ${isDropTarget ? "drop-target" : ""}`;
+    card.className = `map-node ${state.selectedNodeId === node.id ? "selected" : ""} ${node.id === rootId ? "root-node" : ""} ${isDropTarget ? "drop-target" : ""} ${connectorHovered ? "connector-hover" : ""}`;
     card.style.left = `${node.x}px`;
     card.style.top = `${node.y}px`;
     card.style.borderColor = node.color || "#111827";
@@ -1113,7 +1235,7 @@ function renderCanvas() {
 
     card.innerHTML = `
       <div class="node-row">
-        <div class="node-presence">${viewers.map((member) => `<span class="node-user-dot" style="background:${member.color}"></span>`).join("")}</div>
+        <div class="node-presence">${state.personalMode ? "" : viewers.map((member) => `<span class="node-user-dot" style="background:${member.color}"></span>`).join("")}</div>
       </div>
       <div class="node-actions">
         <button class="node-action-button node-add-button" title="${actionTitle}">${actionLabel}</button>
@@ -1452,7 +1574,9 @@ function render() {
   };
 
   renderFolderTree();
-  renderPresence();
+  if (!state.personalMode) {
+    renderPresence();
+  }
   renderCanvas();
 }
 
@@ -1518,10 +1642,14 @@ window.addEventListener("paste", async (event) => {
 async function start() {
   renderEmptyState();
 
-  const response = await fetch("/workspace");
-  const payload = await response.json();
-  state.workspace = payload.workspace;
-  state.presence = payload.presence;
+  const localWorkspace = loadPersonalWorkspace();
+  if (localWorkspace) {
+    state.workspace = localWorkspace;
+  } else {
+    state.workspace = createLocalInitialWorkspace();
+    savePersonalWorkspace(state.workspace);
+  }
+  state.presence = [];
 
   const firstFolder = state.workspace.folders[0];
   state.selectedNoteId = firstFolder?.noteIds?.[0] ?? Object.keys(state.workspace.notes)[0] ?? null;
@@ -1530,30 +1658,6 @@ async function start() {
   }
 
   render();
-  syncPresence();
-
-  const source = new EventSource(`/events?clientId=${encodeURIComponent(state.clientId)}`);
-  source.onmessage = (event) => {
-    const payload = JSON.parse(event.data);
-    if (payload.type === "hello" && payload.clientId) {
-      state.clientId = payload.clientId;
-      localStorage.setItem("geonius-client-id", state.clientId);
-      return;
-    }
-    if (payload.type === "presence") {
-      state.presence = payload.presence;
-      renderPresence();
-      if (!state.editingNodeId) {
-        renderCanvas();
-      }
-      return;
-    }
-    if (payload.type === "operation") {
-      state.workspace = applyWorkspaceOperationLocally(state.workspace, payload.operation);
-      ensureValidSelection();
-      render();
-    }
-  };
 }
 
 start().catch((error) => {

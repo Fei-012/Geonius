@@ -189,6 +189,7 @@ button {
   opacity: 0;
   pointer-events: none;
   transition: opacity 120ms ease;
+  z-index: 3;
 }
 
 .folder-card:hover .folder-delete-button,
@@ -375,7 +376,8 @@ button {
 }
 
 .map-node:hover,
-.map-node.selected {
+.map-node.selected,
+.map-node.connector-hover {
   border-color: #111111;
   box-shadow: 0 0 0 2px rgba(17, 24, 39, 0.18);
 }
@@ -410,7 +412,7 @@ button {
 .node-actions {
   position: absolute;
   top: 50%;
-  right: -22px;
+  right: -18px;
   transform: translateY(-50%);
   display: flex;
   flex-direction: column;
@@ -421,7 +423,8 @@ button {
 }
 
 .map-node:hover .node-actions,
-.map-node.selected .node-actions {
+.map-node.selected .node-actions,
+.map-node.connector-hover .node-actions {
   opacity: 1;
   pointer-events: auto;
 }
