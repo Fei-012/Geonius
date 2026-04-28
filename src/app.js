@@ -52,7 +52,7 @@ function createNode(partial) {
     x: partial.x ?? 0,
     y: partial.y ?? 0,
     width: partial.width ?? 320,
-    height: partial.height ?? (partial.image ? 220 : 60),
+    height: partial.height ?? (partial.image ? 220 : 52),
     color: partial.color ?? "#111827",
     collapsed: partial.collapsed ?? false,
     image: partial.image,
@@ -64,7 +64,7 @@ function createNode(partial) {
 function getNodeSize(node) {
   return {
     width: node.width ?? 320,
-    height: node.height ?? (node.image ? 220 : 60)
+    height: node.height ?? (node.image ? 220 : 52)
   };
 }
 
@@ -155,6 +155,39 @@ function savePersonalWorkspace(workspace) {
   }
 }
 
+function normalizeWorkspaceAppearance(workspace) {
+  if (!workspace?.notes) {
+    return workspace;
+  }
+
+  const nextNotes = {};
+  Object.entries(workspace.notes).forEach(([noteId, note]) => {
+    const nextNodes = {};
+    Object.entries(note.document.nodes).forEach(([nodeId, node]) => {
+      nextNodes[nodeId] = node.image
+        ? node
+        : {
+            ...node,
+            height: 52,
+            width: Math.max(320, node.width ?? 320)
+          };
+    });
+
+    nextNotes[noteId] = {
+      ...note,
+      document: {
+        ...note.document,
+        nodes: nextNodes
+      }
+    };
+  });
+
+  return {
+    ...workspace,
+    notes: nextNotes
+  };
+}
+
 function getResizeDirection(event, element) {
   const rect = element.getBoundingClientRect();
   const edge = 10;
@@ -205,12 +238,12 @@ function getNodeDepth(document, nodeId) {
 
 function autoGrowNodeCard(card, editor, node, persist = false) {
   const { height: currentHeight } = getNodeSize(node);
-  const textAreaPadding = 24;
-  const headerHeight = 18;
+  const textAreaPadding = 14;
+  const headerHeight = 12;
   const imageHeight = node.image ? Math.max(120, currentHeight - 44) : 0;
 
   editor.style.height = "0px";
-  const nextEditorHeight = Math.max(28, editor.scrollHeight);
+  const nextEditorHeight = Math.max(22, editor.scrollHeight);
   editor.style.height = `${nextEditorHeight}px`;
 
   const nextHeight = Math.max(
@@ -329,7 +362,7 @@ function applyWorkspaceOperationLocally(workspace, operation) {
     const nodes = { ...document.nodes };
     nodes[rootId] = { ...nodes[rootId], x: 0, y: 0 };
     const columnGapX = 92;
-    const siblingGapY = 72;
+    const siblingGapY = 48;
 
     function nodeBoxWidth(nodeId) {
       const node = nodes[nodeId];
@@ -344,7 +377,7 @@ function applyWorkspaceOperationLocally(workspace, operation) {
       if (!node) {
         return 72;
       }
-      return Math.max(48, node.height ?? (node.image ? 220 : 60));
+      return Math.max(42, node.height ?? (node.image ? 220 : 52));
     }
 
     function branchHeight(nodeId) {
@@ -794,7 +827,7 @@ function createChildNode(parentId) {
     text: "New idea",
     order: siblings.length,
     color: parentId === rootId ? "#d1d5db" : "#ffffff",
-    height: 60
+    height: 52
   });
   state.selectedNodeId = node.id;
   state.focusEditorNodeId = node.id;
@@ -844,7 +877,7 @@ function createSiblingNode(nodeId) {
     text: "New sibling",
     order: currentIndex + 1,
     color: current.color,
-    height: 60
+    height: 52
   });
   state.selectedNodeId = newId;
   state.focusEditorNodeId = newId;
@@ -1449,9 +1482,12 @@ function renderCanvas() {
       const previewStartX = target.x + targetSize.width / 2;
       const previewStartY = target.y;
       const previewEnd = screenToCanvas(dragState.pointerX, dragState.pointerY);
-      const previewMidX = previewEnd.x - 36;
+      const draggedSize = getNodeSize(dragged);
+      const previewBoxX = previewEnd.x;
+      const previewBoxY = previewEnd.y;
+      const previewMidX = previewBoxX - draggedSize.width / 2 - 26;
       const preview = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      preview.setAttribute("d", `M ${previewStartX} ${previewStartY} H ${previewMidX} V ${previewEnd.y} H ${previewEnd.x}`);
+      preview.setAttribute("d", `M ${previewStartX} ${previewStartY} H ${previewMidX} V ${previewBoxY} H ${previewBoxX - draggedSize.width / 2}`);
       preview.setAttribute("stroke", "#2563eb");
       preview.setAttribute("stroke-width", String(2.2 / state.viewport.scale));
       preview.setAttribute("stroke-dasharray", String(8 / state.viewport.scale) + " " + String(6 / state.viewport.scale));
@@ -1460,6 +1496,16 @@ function renderCanvas() {
       preview.setAttribute("fill", "none");
       preview.setAttribute("opacity", "0.8");
       group.appendChild(preview);
+
+      const ghost = document.createElement("article");
+      ghost.className = "map-node drag-ghost";
+      ghost.style.left = `${previewBoxX}px`;
+      ghost.style.top = `${previewBoxY}px`;
+      ghost.style.width = `${draggedSize.width}px`;
+      ghost.style.minHeight = `${draggedSize.height}px`;
+      ghost.style.borderColor = dragged.color || "#2563eb";
+      ghost.innerHTML = `<div class="node-row"></div><div class="node-ghost-text">${escapeHtml(dragged.text || "")}</div>${dragged.image ? `<img class="node-image" src="${dragged.image}" alt="${escapeHtml(dragged.text || "")}" />` : ""}`;
+      viewportEl.appendChild(ghost);
     }
   }
 
@@ -1524,6 +1570,7 @@ function renderCanvas() {
         (Math.abs(event.clientX - dragState.startX) > 4 || Math.abs(event.clientY - dragState.startY) > 4)
       ) {
         dragState.moved = true;
+        document.body.classList.add("dragging-map");
         render();
       }
       return;
@@ -1548,6 +1595,7 @@ function renderCanvas() {
     }
     dragState = null;
     panState = null;
+    document.body.classList.remove("dragging-map");
     if (shouldRender) {
       render();
     }
@@ -1558,6 +1606,7 @@ function renderCanvas() {
     resizeState = null;
     dragState = null;
     panState = null;
+    document.body.classList.remove("dragging-map");
     if (shouldRender) {
       render();
     }
@@ -1566,8 +1615,12 @@ function renderCanvas() {
   canvasEl.onwheel = (event) => {
     if (event.ctrlKey || event.metaKey) {
       event.preventDefault();
-      const delta = event.deltaY > 0 ? -0.035 : 0.035;
-      state.viewport.scale = Math.max(0.4, Math.min(2, state.viewport.scale + delta));
+      const delta = event.deltaY > 0 ? -0.022 : 0.022;
+      const mouseBefore = screenToCanvas(event.clientX, event.clientY);
+      const nextScale = Math.max(0.4, Math.min(2, state.viewport.scale + delta));
+      state.viewport.x = event.clientX - mouseBefore.x * nextScale;
+      state.viewport.y = event.clientY - mouseBefore.y * nextScale;
+      state.viewport.scale = nextScale;
       render();
       return;
     }
@@ -1690,12 +1743,13 @@ async function start() {
 
   const localWorkspace = loadPersonalWorkspace();
   if (localWorkspace) {
-    state.workspace = localWorkspace;
+    state.workspace = normalizeWorkspaceAppearance(localWorkspace);
   } else {
-    state.workspace = createLocalInitialWorkspace();
+    state.workspace = normalizeWorkspaceAppearance(createLocalInitialWorkspace());
     savePersonalWorkspace(state.workspace);
   }
   state.presence = [];
+  savePersonalWorkspace(state.workspace);
 
   const firstFolder = state.workspace.folders[0];
   state.selectedNoteId = firstFolder?.noteIds?.[0] ?? Object.keys(state.workspace.notes)[0] ?? null;
